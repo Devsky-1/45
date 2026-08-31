@@ -23,7 +23,6 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -35,9 +34,12 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.FlashlightOn
+import androidx.compose.material.icons.filled.Keyboard
 import androidx.compose.material.icons.filled.Mic
 import androidx.compose.material.icons.filled.MicOff
+import androidx.compose.material.icons.filled.Replay
 import androidx.compose.material.icons.filled.Send
 import androidx.compose.material.icons.filled.VolumeOff
 import androidx.compose.material.icons.filled.VolumeUp
@@ -62,35 +64,23 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.testTag
-import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.example.data.repository.AssistantAppearanceConfig
-import com.example.data.repository.AssistantColorTheme
 import com.example.data.repository.AssistantPersonality
-import com.example.data.repository.AssistantShape
 import com.example.domain.JarvisCoreEngine
-import com.example.ui.components.ArcReactorVisualizer
+import com.example.ui.components.AssistantShapeContainer
 import com.example.ui.components.JarvisState
+import com.example.ui.components.SiriScreenEdgeGlow
 import com.example.ui.components.VoiceWaveformVisualizer
 import com.example.ui.theme.JarvisAmber
-import com.example.ui.theme.JarvisAmberGlow
-import com.example.ui.theme.JarvisBlue
-import com.example.ui.theme.JarvisCardBg
-import com.example.ui.theme.JarvisCardBorder
-import com.example.ui.theme.JarvisCardBorderCyan
-import com.example.ui.theme.JarvisCardGlass
-import com.example.ui.theme.JarvisCyan
-import com.example.ui.theme.JarvisCyanGlow
-import com.example.ui.theme.JarvisCyanLight
 import com.example.ui.theme.JarvisGreen
 import com.example.ui.theme.JarvisObsidian
 import com.example.ui.theme.JarvisRed
-import com.example.ui.theme.JarvisSpaceDark
-import com.example.ui.theme.JarvisSpaceMid
 import com.example.ui.theme.JarvisTextMuted
 import com.example.ui.theme.JarvisTextPrimary
 import com.example.ui.theme.JarvisTextSecondary
@@ -111,11 +101,13 @@ fun AssistantOverlayContent(
     val config by engine.appearanceConfig.collectAsState()
 
     var showTextInput by remember { mutableStateOf(false) }
+    var manualTypedQuery by remember { mutableStateOf("") }
+    val clipboardManager = LocalClipboardManager.current
 
     val infiniteTransition = rememberInfiniteTransition(label = "overlay_glow")
     val pulseScale by infiniteTransition.animateFloat(
         initialValue = 1.0f,
-        targetValue = 1.08f,
+        targetValue = 1.07f,
         animationSpec = infiniteRepeatable(
             animation = tween(1200, easing = FastOutSlowInEasing),
             repeatMode = RepeatMode.Reverse
@@ -123,7 +115,7 @@ fun AssistantOverlayContent(
         label = "pulse_scale"
     )
 
-    // Auto-listen on entry if in standby and configured
+    // Auto-listen on entry if configured
     LaunchedEffect(Unit) {
         if (config.autoListenOnOpen && jarvisState != JarvisState.LISTENING) {
             engine.toggleVoiceRecognition()
@@ -133,7 +125,7 @@ fun AssistantOverlayContent(
     Box(
         modifier = modifier
             .fillMaxSize()
-            .background(JarvisObsidian.copy(alpha = 0.88f))
+            .background(Color(0xE6050811))
             .clickable(
                 interactionSource = remember { MutableInteractionSource() },
                 indication = null,
@@ -141,16 +133,27 @@ fun AssistantOverlayContent(
             ),
         contentAlignment = Alignment.BottomCenter
     ) {
-        // Main Holographic Bottom Sheet
+        // 1. Siri iOS 18 Edge Glow running around screen perimeter
+        SiriScreenEdgeGlow(
+            state = jarvisState,
+            colorTheme = config.colorTheme,
+            isActive = true
+        )
+
+        // 2. Google Assistant / Apple Siri Frosted Glass Bottom Modal
         Card(
-            shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp),
+            shape = RoundedCornerShape(topStart = 32.dp, topEnd = 32.dp),
             colors = CardDefaults.cardColors(
-                containerColor = JarvisCardBg.copy(alpha = 0.96f)
+                containerColor = Color(0xF20F1626)
             ),
             border = BorderStroke(
-                1.5.dp,
+                1.dp,
                 Brush.verticalGradient(
-                    listOf(config.colorTheme.primaryColor, JarvisCardBorder.copy(alpha = 0.6f))
+                    listOf(
+                        Color(0x66FFFFFF),
+                        config.colorTheme.primaryColor.copy(alpha = 0.4f),
+                        Color(0x1AFFFFFF)
+                    )
                 )
             ),
             modifier = Modifier
@@ -166,19 +169,35 @@ fun AssistantOverlayContent(
                 horizontalAlignment = Alignment.CenterHorizontally,
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 20.dp, vertical = 16.dp)
+                    .padding(horizontal = 20.dp, vertical = 14.dp)
                     .verticalScroll(rememberScrollState())
             ) {
-                // Top Header Pill
+                // Top Grabber / Pill
+                Box(
+                    modifier = Modifier
+                        .size(width = 42.dp, height = 5.dp)
+                        .clip(CircleShape)
+                        .background(Color(0x4DFFFFFF))
+                )
+
+                Spacer(modifier = Modifier.height(12.dp))
+
+                // Top Header Row
                 Row(
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically,
                     modifier = Modifier.fillMaxWidth()
                 ) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(16.dp))
+                            .background(Color(0x22FFFFFF))
+                            .padding(horizontal = 10.dp, vertical = 5.dp)
+                    ) {
                         Box(
                             modifier = Modifier
-                                .size(10.dp)
+                                .size(8.dp)
                                 .clip(CircleShape)
                                 .background(
                                     when (jarvisState) {
@@ -186,18 +205,17 @@ fun AssistantOverlayContent(
                                         JarvisState.PROCESSING -> JarvisAmber
                                         JarvisState.SPEAKING -> JarvisGreen
                                         JarvisState.ALERT -> JarvisRed
-                                        JarvisState.STANDBY -> config.colorTheme.primaryColor.copy(alpha = 0.5f)
+                                        JarvisState.STANDBY -> config.colorTheme.primaryColor
                                     }
                                 )
                         )
-                        Spacer(modifier = Modifier.width(8.dp))
+                        Spacer(modifier = Modifier.width(6.dp))
                         Text(
-                            text = "${config.personality.displayName.uppercase()} OVERLAY",
-                            color = config.colorTheme.accentColor,
+                            text = config.effectiveWakeWord.uppercase(),
+                            color = JarvisTextPrimary,
                             fontSize = 11.sp,
                             fontWeight = FontWeight.Bold,
-                            fontFamily = FontFamily.Monospace,
-                            letterSpacing = 1.2.sp
+                            letterSpacing = 0.8.sp
                         )
                     }
 
@@ -210,7 +228,7 @@ fun AssistantOverlayContent(
                                 imageVector = if (isMuted) Icons.Default.VolumeOff else Icons.Default.VolumeUp,
                                 contentDescription = "Toggle Mute",
                                 tint = if (isMuted) JarvisRed else JarvisTextSecondary,
-                                modifier = Modifier.size(18.dp)
+                                modifier = Modifier.size(20.dp)
                             )
                         }
 
@@ -230,16 +248,16 @@ fun AssistantOverlayContent(
                     }
                 }
 
-                Spacer(modifier = Modifier.height(8.dp))
+                Spacer(modifier = Modifier.height(10.dp))
 
-                // Customizable Assistant Visualizer (Siri Orb / Curved Pill / Reactor)
+                // CENTERPIECE: EXACT SHAPE SELECTED IN STUDIO
                 Box(
                     contentAlignment = Alignment.Center,
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(vertical = 6.dp)
+                        .padding(vertical = 8.dp)
                 ) {
-                    com.example.ui.components.AssistantShapeContainer(
+                    AssistantShapeContainer(
                         state = jarvisState,
                         config = config,
                         audioLevel = rmsAudio,
@@ -247,9 +265,9 @@ fun AssistantOverlayContent(
                     )
                 }
 
-                Spacer(modifier = Modifier.height(10.dp))
+                Spacer(modifier = Modifier.height(8.dp))
 
-                // Real-time audio waveform when listening or speaking
+                // Real-time audio waveform
                 if (jarvisState == JarvisState.LISTENING || isSpeaking) {
                     VoiceWaveformVisualizer(
                         isListening = true,
@@ -258,17 +276,17 @@ fun AssistantOverlayContent(
                             .fillMaxWidth()
                             .padding(vertical = 4.dp)
                     )
-                    Spacer(modifier = Modifier.height(8.dp))
+                    Spacer(modifier = Modifier.height(6.dp))
                 }
 
                 // Dynamic Status Text
                 Text(
                     text = when (jarvisState) {
                         JarvisState.LISTENING -> "Listening to your voice..."
-                        JarvisState.PROCESSING -> "Analyzing command..."
-                        JarvisState.SPEAKING -> "Assistant Responding..."
+                        JarvisState.PROCESSING -> "Thinking..."
+                        JarvisState.SPEAKING -> "Responding..."
                         JarvisState.ALERT -> "Tactical Protocol Engaged"
-                        JarvisState.STANDBY -> if (config.continuousVoiceConversation) "Hands-free voice ready" else "Tap visualizer or speak"
+                        JarvisState.STANDBY -> if (config.continuousVoiceConversation) "Hands-free ready • Speak anytime" else "Tap orb or speak to ask"
                     },
                     color = when (jarvisState) {
                         JarvisState.LISTENING -> config.colorTheme.accentColor
@@ -278,30 +296,28 @@ fun AssistantOverlayContent(
                         JarvisState.STANDBY -> JarvisTextSecondary
                     },
                     fontSize = 13.sp,
-                    fontFamily = FontFamily.Monospace,
                     fontWeight = FontWeight.Medium
                 )
 
                 Spacer(modifier = Modifier.height(10.dp))
 
-                // User Input / Recognized Query Display
+                // User Input Bubble (if recognized)
                 if (queryInput.isNotBlank()) {
                     Surface(
-                        color = JarvisSpaceDark.copy(alpha = 0.8f),
-                        shape = RoundedCornerShape(12.dp),
-                        border = BorderStroke(1.dp, config.colorTheme.primaryColor.copy(alpha = 0.4f)),
+                        color = Color(0x2E1E3A8A),
+                        shape = RoundedCornerShape(16.dp),
+                        border = BorderStroke(1.dp, config.colorTheme.primaryColor.copy(alpha = 0.45f)),
                         modifier = Modifier.fillMaxWidth()
                     ) {
                         Row(
                             verticalAlignment = Alignment.CenterVertically,
-                            modifier = Modifier.padding(horizontal = 14.dp, vertical = 8.dp)
+                            modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp)
                         ) {
                             Text(
-                                text = "YOU: ",
+                                text = "You: ",
                                 color = config.colorTheme.accentColor,
-                                fontSize = 11.sp,
-                                fontWeight = FontWeight.Bold,
-                                fontFamily = FontFamily.Monospace
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.Bold
                             )
                             Text(
                                 text = queryInput,
@@ -314,11 +330,11 @@ fun AssistantOverlayContent(
                     Spacer(modifier = Modifier.height(8.dp))
                 }
 
-                // Jarvis Response Card
+                // Assistant Response Card
                 Surface(
-                    color = JarvisSpaceMid.copy(alpha = 0.9f),
-                    shape = RoundedCornerShape(16.dp),
-                    border = BorderStroke(1.dp, config.colorTheme.primaryColor.copy(alpha = 0.5f)),
+                    color = Color(0x3D111827),
+                    shape = RoundedCornerShape(18.dp),
+                    border = BorderStroke(1.dp, Color(0x2EFFFFFF)),
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     Column(modifier = Modifier.padding(14.dp)) {
@@ -327,70 +343,174 @@ fun AssistantOverlayContent(
                             horizontalArrangement = Arrangement.SpaceBetween,
                             modifier = Modifier.fillMaxWidth()
                         ) {
-                            Text(
-                                text = "${config.personality.displayName.uppercase()} RESPONSE",
-                                color = config.colorTheme.accentColor,
-                                fontSize = 10.sp,
-                                fontWeight = FontWeight.Bold,
-                                fontFamily = FontFamily.Monospace,
-                                letterSpacing = 1.sp
-                            )
-                            if (isSpeaking) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Box(
+                                    modifier = Modifier
+                                        .size(6.dp)
+                                        .clip(CircleShape)
+                                        .background(config.colorTheme.accentColor)
+                                )
+                                Spacer(modifier = Modifier.width(6.dp))
                                 Text(
-                                    text = "SPEAKING",
-                                    color = JarvisGreen,
-                                    fontSize = 9.sp,
-                                    fontFamily = FontFamily.Monospace,
-                                    fontWeight = FontWeight.Bold
+                                    text = config.personality.displayName,
+                                    color = config.colorTheme.accentColor,
+                                    fontSize = 11.sp,
+                                    fontWeight = FontWeight.SemiBold
                                 )
                             }
+
+                            Row {
+                                IconButton(
+                                    onClick = {
+                                        clipboardManager.setText(AnnotatedString(lastResponse))
+                                    },
+                                    modifier = Modifier.size(24.dp)
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.ContentCopy,
+                                        contentDescription = "Copy Response",
+                                        tint = JarvisTextSecondary,
+                                        modifier = Modifier.size(14.dp)
+                                    )
+                                }
+                                Spacer(modifier = Modifier.width(4.dp))
+                                IconButton(
+                                    onClick = { engine.speakText(lastResponse) },
+                                    modifier = Modifier.size(24.dp)
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.Replay,
+                                        contentDescription = "Replay Speech",
+                                        tint = JarvisTextSecondary,
+                                        modifier = Modifier.size(15.dp)
+                                    )
+                                }
+                            }
                         }
+
                         Spacer(modifier = Modifier.height(6.dp))
                         Text(
                             text = lastResponse,
                             color = JarvisTextPrimary,
-                            fontSize = 13.sp,
-                            lineHeight = 18.sp
+                            fontSize = 13.5.sp,
+                            lineHeight = 19.sp,
+                            fontWeight = FontWeight.Normal
                         )
                     }
                 }
 
-                Spacer(modifier = Modifier.height(14.dp))
+                Spacer(modifier = Modifier.height(12.dp))
 
-                // Tactical Quick Action Chips
+                // Suggestion Capsules (Google Assistant / Siri Style)
                 FlowRow(
                     horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.CenterHorizontally),
                     verticalArrangement = Arrangement.spacedBy(8.dp),
                     modifier = Modifier.fillMaxWidth()
                 ) {
-                    AssistQuickChip("🔦 Torch", onClick = { engine.processUserQuery("turn on flashlight") })
-                    AssistQuickChip("📊 Daily Brief", onClick = { engine.processUserQuery("status briefing") })
+                    AssistQuickChip("🔦 Flashlight", onClick = { engine.processUserQuery("turn on flashlight") })
                     AssistQuickChip("⏱️ 5m Timer", onClick = { engine.processUserQuery("set a timer for 5 minutes") })
+                    AssistQuickChip("📊 Briefing", onClick = { engine.processUserQuery("status briefing") })
+                    AssistQuickChip("🔋 Battery", onClick = { engine.processUserQuery("what is my battery level") })
                     AssistQuickChip("⚡ Diagnostics", onClick = { engine.processUserQuery("run diagnostic check") })
-                    AssistQuickChip("🛡️ Sentry Mode", onClick = { engine.processUserQuery("Perimeter Defense Grid") })
                 }
 
-                Spacer(modifier = Modifier.height(16.dp))
+                Spacer(modifier = Modifier.height(14.dp))
 
-                // Microphone & Input Action Row
+                // Optional Keyboard input area
+                AnimatedVisibility(
+                    visible = showTextInput,
+                    enter = fadeIn() + slideInVertically()
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(bottom = 10.dp)
+                    ) {
+                        OutlinedTextField(
+                            value = manualTypedQuery,
+                            onValueChange = { manualTypedQuery = it },
+                            placeholder = { Text("Ask anything...", color = JarvisTextMuted, fontSize = 13.sp) },
+                            singleLine = true,
+                            shape = RoundedCornerShape(24.dp),
+                            colors = OutlinedTextFieldDefaults.colors(
+                                focusedBorderColor = config.colorTheme.accentColor,
+                                unfocusedBorderColor = Color(0x33FFFFFF),
+                                focusedTextColor = JarvisTextPrimary,
+                                unfocusedTextColor = JarvisTextPrimary,
+                                focusedContainerColor = Color(0x33000000),
+                                unfocusedContainerColor = Color(0x22000000)
+                            ),
+                            keyboardOptions = KeyboardOptions(imeAction = ImeAction.Send),
+                            keyboardActions = KeyboardActions(onSend = {
+                                if (manualTypedQuery.isNotBlank()) {
+                                    engine.processUserQuery(manualTypedQuery)
+                                    manualTypedQuery = ""
+                                    showTextInput = false
+                                }
+                            }),
+                            modifier = Modifier.weight(1f)
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        IconButton(
+                            onClick = {
+                                if (manualTypedQuery.isNotBlank()) {
+                                    engine.processUserQuery(manualTypedQuery)
+                                    manualTypedQuery = ""
+                                    showTextInput = false
+                                }
+                            },
+                            modifier = Modifier
+                                .size(44.dp)
+                                .clip(CircleShape)
+                                .background(config.colorTheme.accentColor)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Send,
+                                contentDescription = "Send",
+                                tint = Color(0xFF001F24),
+                                modifier = Modifier.size(20.dp)
+                            )
+                        }
+                    }
+                }
+
+                // BOTTOM ACTION DOCK
                 Row(
-                    horizontalArrangement = Arrangement.Center,
+                    horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically,
                     modifier = Modifier.fillMaxWidth()
                 ) {
-                    // Tap to Speak Glowing Button
+                    // Keyboard toggle button
+                    IconButton(
+                        onClick = { showTextInput = !showTextInput },
+                        modifier = Modifier
+                            .size(44.dp)
+                            .clip(CircleShape)
+                            .background(Color(0x22FFFFFF))
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Keyboard,
+                            contentDescription = "Type Query",
+                            tint = JarvisTextPrimary,
+                            modifier = Modifier.size(20.dp)
+                        )
+                    }
+
+                    // Main Glowing Assistant Orb/Mic Trigger
                     Box(
                         contentAlignment = Alignment.Center,
                         modifier = Modifier
                             .scale(if (jarvisState == JarvisState.LISTENING) pulseScale else 1.0f)
-                            .size(64.dp)
+                            .size(62.dp)
                             .clip(CircleShape)
                             .background(
-                                Brush.radialGradient(
-                                    listOf(
-                                        if (jarvisState == JarvisState.LISTENING) config.colorTheme.accentColor else config.colorTheme.primaryColor,
-                                        JarvisObsidian
-                                    )
+                                Brush.linearGradient(
+                                    colors = if (jarvisState == JarvisState.LISTENING) {
+                                        config.colorTheme.gradientColors
+                                    } else {
+                                        listOf(config.colorTheme.primaryColor, config.colorTheme.accentColor)
+                                    }
                                 )
                             )
                             .clickable {
@@ -405,15 +525,23 @@ fun AssistantOverlayContent(
                             modifier = Modifier.size(28.dp)
                         )
                     }
-                }
 
-                Spacer(modifier = Modifier.height(6.dp))
-                Text(
-                    text = if (jarvisState == JarvisState.LISTENING) "Listening... Tap to stop" else "Tap to activate voice",
-                    color = JarvisTextMuted,
-                    fontSize = 10.sp,
-                    fontFamily = FontFamily.Monospace
-                )
+                    // Close action button
+                    IconButton(
+                        onClick = onDismiss,
+                        modifier = Modifier
+                            .size(44.dp)
+                            .clip(CircleShape)
+                            .background(Color(0x22FFFFFF))
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Close,
+                            contentDescription = "Dismiss",
+                            tint = JarvisTextPrimary,
+                            modifier = Modifier.size(20.dp)
+                        )
+                    }
+                }
             }
         }
     }
@@ -426,17 +554,16 @@ private fun AssistQuickChip(
 ) {
     Surface(
         onClick = onClick,
-        shape = RoundedCornerShape(10.dp),
-        color = JarvisCardGlass,
-        border = BorderStroke(1.dp, JarvisCardBorder.copy(alpha = 0.8f))
+        shape = RoundedCornerShape(14.dp),
+        color = Color(0x26FFFFFF),
+        border = BorderStroke(1.dp, Color(0x33FFFFFF))
     ) {
         Text(
             text = label,
-            color = JarvisCyanLight,
-            fontSize = 11.sp,
-            fontFamily = FontFamily.Monospace,
+            color = JarvisTextPrimary,
+            fontSize = 11.5.sp,
             fontWeight = FontWeight.Medium,
-            modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp)
+            modifier = Modifier.padding(horizontal = 12.dp, vertical = 7.dp)
         )
     }
 }

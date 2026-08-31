@@ -1,6 +1,7 @@
 package com.example.domain
 
 import android.content.Context
+import android.content.Intent
 import com.example.audio.SpeechRecognizerHelper
 import com.example.audio.SpeechState
 import com.example.audio.TextToSpeechHelper
@@ -181,18 +182,29 @@ class JarvisCoreEngine private constructor(val context: Context) {
                     deviceController.vibrateHaptic(60)
                 }
 
+                // Launch system-wide overlay activity immediately over home screen or any app
+                try {
+                    val overlayIntent = Intent(context, com.example.ui.screens.JarvisAssistActivity::class.java).apply {
+                        flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP
+                        if (!command.isNullOrBlank()) {
+                            putExtra(com.example.ui.screens.JarvisAssistActivity.EXTRA_COMMAND, command)
+                        }
+                    }
+                    context.startActivity(overlayIntent)
+                } catch (_: Exception) {}
+
                 if (!command.isNullOrBlank()) {
                     // Spoken command attached directly after wake word (e.g. "Hey Jarvis turn on flashlight")
                     _currentQueryInput.value = command
                     processUserQuery(command)
                 } else {
                     // Wake word triggered alone ("Hey Jarvis") -> transition into active listening
+                    _jarvisState.value = JarvisState.LISTENING
                     val wakeGreeting = when (appearanceConfig.value.personality) {
                         AssistantPersonality.JARVIS_AI -> "Online, sir. How may I assist?"
                         AssistantPersonality.SIRI_PRO -> "I'm listening."
                         AssistantPersonality.PRO_EXECUTIVE -> "Ready. Go ahead."
                     }
-                    _jarvisState.value = JarvisState.LISTENING
                     ttsHelper.speak(wakeGreeting)
                 }
             }
@@ -394,6 +406,12 @@ class JarvisCoreEngine private constructor(val context: Context) {
         engineScope.launch(Dispatchers.Main) {
             ttsHelper.speak(reply)
             onResponseReady?.invoke(reply)
+        }
+    }
+
+    fun speakText(text: String) {
+        engineScope.launch(Dispatchers.Main) {
+            ttsHelper.speak(text)
         }
     }
 

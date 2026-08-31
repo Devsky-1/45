@@ -153,12 +153,39 @@ class JarvisFloatingOverlayService : Service(), LifecycleOwner, SavedStateRegist
                                 onClick = { openAssistantOverlay() }
                             )
                         }
+                        com.example.data.repository.AssistantShape.ARC_REACTOR -> {
+                            com.example.ui.components.ArcReactorVisualizer(
+                                state = jarvisState,
+                                audioLevel = rmsAudio,
+                                size = 64.dp,
+                                onClick = { openAssistantOverlay() }
+                            )
+                        }
+                        com.example.data.repository.AssistantShape.MINIMAL_BUBBLE -> {
+                            com.example.ui.components.MinimalBubbleVisualizer(
+                                state = jarvisState,
+                                colorTheme = config.colorTheme,
+                                audioLevel = rmsAudio,
+                                size = 60.dp,
+                                glowIntensity = config.glowIntensity,
+                                onClick = { openAssistantOverlay() }
+                            )
+                        }
+                        com.example.data.repository.AssistantShape.WAVEFORM_RIBBON -> {
+                            com.example.ui.components.WaveformRibbonVisualizer(
+                                state = jarvisState,
+                                colorTheme = config.colorTheme,
+                                audioLevel = rmsAudio,
+                                glowIntensity = config.glowIntensity,
+                                onClick = { openAssistantOverlay() }
+                            )
+                        }
                         else -> {
                             com.example.ui.components.SiriOrbVisualizer(
                                 state = jarvisState,
                                 colorTheme = config.colorTheme,
                                 audioLevel = rmsAudio,
-                                size = 60.dp,
+                                size = 62.dp,
                                 glowIntensity = config.glowIntensity,
                                 onClick = { openAssistantOverlay() }
                             )

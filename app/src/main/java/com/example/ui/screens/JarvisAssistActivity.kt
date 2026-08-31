@@ -2,6 +2,7 @@ package com.example.ui.screens
 
 import android.app.KeyguardManager
 import android.content.Context
+import android.content.Intent
 import android.os.Build
 import android.os.Bundle
 import android.view.WindowManager
@@ -38,6 +39,8 @@ class JarvisAssistActivity : ComponentActivity() {
 
         engine = JarvisCoreEngine.getInstance(applicationContext)
 
+        handleIncomingCommand(intent)
+
         setContent {
             JarvisTheme {
                 AssistantOverlayContent(
@@ -51,8 +54,25 @@ class JarvisAssistActivity : ComponentActivity() {
         }
     }
 
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        handleIncomingCommand(intent)
+    }
+
+    private fun handleIncomingCommand(intent: Intent?) {
+        val command = intent?.getStringExtra(EXTRA_COMMAND)
+        if (!command.isNullOrBlank()) {
+            engine.processUserQuery(command)
+        }
+    }
+
     override fun onDestroy() {
         super.onDestroy()
         engine.speechHelper.stopListening()
+    }
+
+    companion object {
+        const val EXTRA_COMMAND = "EXTRA_COMMAND"
     }
 }

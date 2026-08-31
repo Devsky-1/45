@@ -201,6 +201,57 @@ class JarvisViewModel(application: Application) : AndroidViewModel(application) 
         }
     }
 
+    fun setShape(shape: com.example.data.repository.AssistantShape) = setAssistantShape(shape)
+    fun updateShape(shape: com.example.data.repository.AssistantShape) = setAssistantShape(shape)
+
+    fun setColorTheme(theme: com.example.data.repository.AssistantColorTheme) = setAssistantColorTheme(theme)
+    fun updateColorTheme(theme: com.example.data.repository.AssistantColorTheme) = setAssistantColorTheme(theme)
+
+    fun setPersonality(personality: com.example.data.repository.AssistantPersonality) = setAssistantPersonality(personality)
+    fun updatePersonality(personality: com.example.data.repository.AssistantPersonality) = setAssistantPersonality(personality)
+
+    fun toggleAmbientWakeWord(enabled: Boolean) {
+        setWakeWordEnabled(enabled)
+        val app = getApplication<Application>()
+        if (enabled) {
+            com.example.service.JarvisBackgroundService.start(app)
+        } else {
+            com.example.service.JarvisBackgroundService.stop(app)
+        }
+    }
+
+    fun updateSelectedWakeWord(preset: String) = setWakeWordPreset(preset)
+    fun updateCustomWakeWord(word: String) = setCustomWakeWord(word)
+    fun testCurrentWakeWord() = testWakeWord()
+
+    fun updateFloatingBubble(enabled: Boolean) {
+        preferencesManager.setFloatingBubble(enabled)
+        toggleFloatingOverlay(enabled)
+    }
+
+    fun updateAutoListen(enabled: Boolean) = setAutoListenOnOpen(enabled)
+    fun updateContinuousConversation(enabled: Boolean) = setContinuousVoice(enabled)
+    fun updateWakeHaptic(enabled: Boolean) = setWakeHapticFeedback(enabled)
+    fun updateSpeechPitch(pitch: Float) = setSpeechPitch(pitch)
+    fun updateSpeechSpeed(speed: Float) = setSpeechSpeed(speed)
+    fun resetToDefaults() {
+        preferencesManager.resetToDefaults()
+        deviceController.vibrateHaptic(40)
+    }
+
+    fun speakText(text: String) {
+        viewModelScope.launch(Dispatchers.Main) {
+            ttsHelper.speak(text)
+        }
+    }
+
+    fun clearConversation() {
+        viewModelScope.launch(Dispatchers.IO) {
+            repository.clearHistory()
+        }
+        deviceController.vibrateHaptic(30)
+    }
+
     fun setAssistantShape(shape: com.example.data.repository.AssistantShape) {
         preferencesManager.setShape(shape)
         deviceController.vibrateHaptic(30)

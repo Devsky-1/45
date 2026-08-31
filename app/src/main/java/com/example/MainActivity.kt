@@ -85,6 +85,11 @@ class MainActivity : ComponentActivity() {
                 JarvisApp(viewModel = viewModel)
             }
         }
+
+        // Start background service for ambient wake word detection if enabled
+        if (viewModel.appearanceConfig.value.wakeWordEnabled) {
+            com.example.service.JarvisBackgroundService.start(this)
+        }
     }
 }
 
@@ -108,7 +113,7 @@ fun JarvisApp(viewModel: JarvisViewModel) {
             bottomBar = {
                 if (!isLockScreenActive) {
                     NavigationBar(
-                        containerColor = JarvisCardBg,
+                        containerColor = Color(0xF00B101C),
                         contentColor = JarvisCyan,
                         tonalElevation = 8.dp,
                         modifier = Modifier
@@ -126,10 +131,9 @@ fun JarvisApp(viewModel: JarvisViewModel) {
                             },
                             label = {
                                 Text(
-                                    text = "ASSISTANT",
-                                    fontFamily = FontFamily.Monospace,
-                                    fontSize = 8.5.sp,
-                                    fontWeight = FontWeight.Bold
+                                    text = "Assistant",
+                                    fontSize = 11.sp,
+                                    fontWeight = if (selectedTab == 0) FontWeight.Bold else FontWeight.Normal
                                 )
                             },
                             colors = NavigationBarItemDefaults.colors(
@@ -153,10 +157,9 @@ fun JarvisApp(viewModel: JarvisViewModel) {
                             },
                             label = {
                                 Text(
-                                    text = "STUDIO",
-                                    fontFamily = FontFamily.Monospace,
-                                    fontSize = 8.5.sp,
-                                    fontWeight = FontWeight.Bold
+                                    text = "Studio",
+                                    fontSize = 11.sp,
+                                    fontWeight = if (selectedTab == 1) FontWeight.Bold else FontWeight.Normal
                                 )
                             },
                             colors = NavigationBarItemDefaults.colors(
@@ -180,10 +183,9 @@ fun JarvisApp(viewModel: JarvisViewModel) {
                             },
                             label = {
                                 Text(
-                                    text = "LOCK",
-                                    fontFamily = FontFamily.Monospace,
-                                    fontSize = 8.5.sp,
-                                    fontWeight = FontWeight.Bold
+                                    text = "Lock",
+                                    fontSize = 11.sp,
+                                    fontWeight = if (selectedTab == 2) FontWeight.Bold else FontWeight.Normal
                                 )
                             },
                             colors = NavigationBarItemDefaults.colors(
@@ -207,10 +209,9 @@ fun JarvisApp(viewModel: JarvisViewModel) {
                             },
                             label = {
                                 Text(
-                                    text = "STATUS",
-                                    fontFamily = FontFamily.Monospace,
-                                    fontSize = 8.5.sp,
-                                    fontWeight = FontWeight.Bold
+                                    text = "Status",
+                                    fontSize = 11.sp,
+                                    fontWeight = if (selectedTab == 3) FontWeight.Bold else FontWeight.Normal
                                 )
                             },
                             colors = NavigationBarItemDefaults.colors(
@@ -234,10 +235,9 @@ fun JarvisApp(viewModel: JarvisViewModel) {
                             },
                             label = {
                                 Text(
-                                    text = "MEMORY",
-                                    fontFamily = FontFamily.Monospace,
-                                    fontSize = 8.5.sp,
-                                    fontWeight = FontWeight.Bold
+                                    text = "Memory",
+                                    fontSize = 11.sp,
+                                    fontWeight = if (selectedTab == 4) FontWeight.Bold else FontWeight.Normal
                                 )
                             },
                             colors = NavigationBarItemDefaults.colors(

@@ -142,6 +142,7 @@ data class AssistantAppearanceConfig(
     val wakeWordEnabled: Boolean = true,
     val wakeWordPreset: String = "Hey Jarvis",
     val customWakeWord: String = "Jarvis",
+    val floatingBubbleEnabled: Boolean = false,
     val wakeHapticFeedback: Boolean = true,
     val wakeChimeSound: Boolean = true,
     val glowIntensity: Float = 1.0f, // 0.5f to 1.5f
@@ -149,6 +150,9 @@ data class AssistantAppearanceConfig(
     val speechSpeed: Float = 1.0f, // 0.8f to 1.4f
     val speechPitch: Float = 1.0f // 0.8f to 1.3f
 ) {
+    val selectedWakeWord: String
+        get() = wakeWordPreset
+
     val effectiveWakeWord: String
         get() = if (wakeWordPreset.equals("Custom", ignoreCase = true)) {
             customWakeWord.trim().ifBlank { "Jarvis" }
@@ -175,6 +179,7 @@ class AssistantPreferencesManager(context: Context) {
         val wakeEnabled = prefs.getBoolean("wake_word_enabled", true)
         val wakePreset = prefs.getString("wake_word_preset", "Hey Jarvis") ?: "Hey Jarvis"
         val customWake = prefs.getString("custom_wake_word", "Jarvis") ?: "Jarvis"
+        val floatingBubble = prefs.getBoolean("floating_bubble", false)
         val wakeHaptics = prefs.getBoolean("wake_haptic_feedback", true)
         val wakeChime = prefs.getBoolean("wake_chime_sound", true)
         val glow = prefs.getFloat("glow_intensity", 1.0f)
@@ -195,6 +200,7 @@ class AssistantPreferencesManager(context: Context) {
             wakeWordEnabled = wakeEnabled,
             wakeWordPreset = wakePreset,
             customWakeWord = customWake,
+            floatingBubbleEnabled = floatingBubble,
             wakeHapticFeedback = wakeHaptics,
             wakeChimeSound = wakeChime,
             glowIntensity = glow,
@@ -216,6 +222,7 @@ class AssistantPreferencesManager(context: Context) {
             .putBoolean("wake_word_enabled", newConfig.wakeWordEnabled)
             .putString("wake_word_preset", newConfig.wakeWordPreset)
             .putString("custom_wake_word", newConfig.customWakeWord)
+            .putBoolean("floating_bubble", newConfig.floatingBubbleEnabled)
             .putBoolean("wake_haptic_feedback", newConfig.wakeHapticFeedback)
             .putBoolean("wake_chime_sound", newConfig.wakeChimeSound)
             .putFloat("glow_intensity", newConfig.glowIntensity)
@@ -223,6 +230,11 @@ class AssistantPreferencesManager(context: Context) {
             .putFloat("speech_speed", newConfig.speechSpeed)
             .putFloat("speech_pitch", newConfig.speechPitch)
             .apply()
+    }
+
+    fun resetToDefaults() {
+        _configFlow.value = AssistantAppearanceConfig()
+        prefs.edit().clear().apply()
     }
 
     fun setShape(shape: AssistantShape) {
@@ -247,6 +259,10 @@ class AssistantPreferencesManager(context: Context) {
 
     fun setWakeWordEnabled(enabled: Boolean) {
         updateConfig { it.copy(wakeWordEnabled = enabled) }
+    }
+
+    fun setFloatingBubble(enabled: Boolean) {
+        updateConfig { it.copy(floatingBubbleEnabled = enabled) }
     }
 
     fun setWakeWordPreset(preset: String) {
