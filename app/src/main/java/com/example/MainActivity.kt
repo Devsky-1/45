@@ -26,6 +26,7 @@ import androidx.compose.material.icons.filled.Assistant
 import androidx.compose.material.icons.filled.Bolt
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.Memory
+import androidx.compose.material.icons.filled.Palette
 import androidx.compose.material.icons.filled.Speed
 import androidx.compose.material3.Icon
 import androidx.compose.material3.NavigationBar
@@ -46,6 +47,7 @@ import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.ui.JarvisViewModel
+import com.example.ui.screens.AssistantCustomizationScreen
 import com.example.ui.screens.LockScreenOverlay
 import com.example.ui.screens.MainAssistantScreen
 import com.example.ui.screens.MemoryMatrixScreen
@@ -124,9 +126,9 @@ fun JarvisApp(viewModel: JarvisViewModel) {
                             },
                             label = {
                                 Text(
-                                    text = "CORE HUD",
+                                    text = "ASSISTANT",
                                     fontFamily = FontFamily.Monospace,
-                                    fontSize = 9.sp,
+                                    fontSize = 8.5.sp,
                                     fontWeight = FontWeight.Bold
                                 )
                             },
@@ -145,15 +147,42 @@ fun JarvisApp(viewModel: JarvisViewModel) {
                             onClick = { viewModel.setSelectedTab(1) },
                             icon = {
                                 Icon(
+                                    imageVector = Icons.Default.Palette,
+                                    contentDescription = "Customize"
+                                )
+                            },
+                            label = {
+                                Text(
+                                    text = "STUDIO",
+                                    fontFamily = FontFamily.Monospace,
+                                    fontSize = 8.5.sp,
+                                    fontWeight = FontWeight.Bold
+                                )
+                            },
+                            colors = NavigationBarItemDefaults.colors(
+                                selectedIconColor = Color(0xFF001F24),
+                                selectedTextColor = JarvisCyanLight,
+                                indicatorColor = JarvisCyan,
+                                unselectedIconColor = JarvisTextMuted,
+                                unselectedTextColor = JarvisTextMuted
+                            ),
+                            modifier = Modifier.testTag("nav_studio_customize")
+                        )
+
+                        NavigationBarItem(
+                            selected = selectedTab == 2,
+                            onClick = { viewModel.setSelectedTab(2) },
+                            icon = {
+                                Icon(
                                     imageVector = Icons.Default.Lock,
                                     contentDescription = "Lock Screen"
                                 )
                             },
                             label = {
                                 Text(
-                                    text = "LOCK SCREEN",
+                                    text = "LOCK",
                                     fontFamily = FontFamily.Monospace,
-                                    fontSize = 9.sp,
+                                    fontSize = 8.5.sp,
                                     fontWeight = FontWeight.Bold
                                 )
                             },
@@ -168,8 +197,8 @@ fun JarvisApp(viewModel: JarvisViewModel) {
                         )
 
                         NavigationBarItem(
-                            selected = selectedTab == 2,
-                            onClick = { viewModel.setSelectedTab(2) },
+                            selected = selectedTab == 3,
+                            onClick = { viewModel.setSelectedTab(3) },
                             icon = {
                                 Icon(
                                     imageVector = Icons.Default.Speed,
@@ -178,9 +207,9 @@ fun JarvisApp(viewModel: JarvisViewModel) {
                             },
                             label = {
                                 Text(
-                                    text = "TELEMETRY",
+                                    text = "STATUS",
                                     fontFamily = FontFamily.Monospace,
-                                    fontSize = 9.sp,
+                                    fontSize = 8.5.sp,
                                     fontWeight = FontWeight.Bold
                                 )
                             },
@@ -195,8 +224,8 @@ fun JarvisApp(viewModel: JarvisViewModel) {
                         )
 
                         NavigationBarItem(
-                            selected = selectedTab == 3,
-                            onClick = { viewModel.setSelectedTab(3) },
+                            selected = selectedTab == 4,
+                            onClick = { viewModel.setSelectedTab(4) },
                             icon = {
                                 Icon(
                                     imageVector = Icons.Default.Memory,
@@ -207,7 +236,7 @@ fun JarvisApp(viewModel: JarvisViewModel) {
                                 Text(
                                     text = "MEMORY",
                                     fontFamily = FontFamily.Monospace,
-                                    fontSize = 9.sp,
+                                    fontSize = 8.5.sp,
                                     fontWeight = FontWeight.Bold
                                 )
                             },
@@ -231,9 +260,10 @@ fun JarvisApp(viewModel: JarvisViewModel) {
             ) {
                 when (selectedTab) {
                     0 -> MainAssistantScreen(viewModel = viewModel)
-                    1 -> LockScreenOverlay(viewModel = viewModel, onDismiss = { viewModel.setSelectedTab(0) })
-                    2 -> SystemDiagnosticsScreen(viewModel = viewModel)
-                    3 -> MemoryMatrixScreen(viewModel = viewModel)
+                    1 -> AssistantCustomizationScreen(viewModel = viewModel)
+                    2 -> LockScreenOverlay(viewModel = viewModel, onDismiss = { viewModel.setSelectedTab(0) })
+                    3 -> SystemDiagnosticsScreen(viewModel = viewModel)
+                    4 -> MemoryMatrixScreen(viewModel = viewModel)
                 }
             }
         }

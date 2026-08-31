@@ -20,6 +20,11 @@ class TextToSpeechHelper(private val context: Context) : TextToSpeech.OnInitList
     private val _isMuted = MutableStateFlow(false)
     val isMuted: StateFlow<Boolean> = _isMuted.asStateFlow()
 
+    var onSpeechCompleted: (() -> Unit)? = null
+
+    private var currentPitch: Float = 0.95f
+    private var currentRate: Float = 1.02f
+
     init {
         tts = TextToSpeech(context.applicationContext, this)
     }
@@ -31,8 +36,8 @@ class TextToSpeechHelper(private val context: Context) : TextToSpeech.OnInitList
                 if (result == TextToSpeech.LANG_MISSING_DATA || result == TextToSpeech.LANG_NOT_SUPPORTED) {
                     engine.setLanguage(Locale.US)
                 }
-                engine.setPitch(0.92f) // Deep, sophisticated Jarvis timbre
-                engine.setSpeechRate(1.02f)
+                engine.setPitch(currentPitch)
+                engine.setSpeechRate(currentRate)
 
                 engine.setOnUtteranceProgressListener(object : UtteranceProgressListener() {
                     override fun onStart(utteranceId: String?) {
@@ -41,6 +46,7 @@ class TextToSpeechHelper(private val context: Context) : TextToSpeech.OnInitList
 
                     override fun onDone(utteranceId: String?) {
                         _isSpeaking.value = false
+                        onSpeechCompleted?.invoke()
                     }
 
                     @Deprecated("Deprecated in Java")
@@ -55,6 +61,16 @@ class TextToSpeechHelper(private val context: Context) : TextToSpeech.OnInitList
                 isInitialized = true
             }
         }
+    }
+
+    fun setPitch(pitch: Float) {
+        currentPitch = pitch
+        tts?.setPitch(pitch)
+    }
+
+    fun setSpeechRate(rate: Float) {
+        currentRate = rate
+        tts?.setSpeechRate(rate)
     }
 
     fun speak(text: String) {

@@ -68,6 +68,10 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.example.data.repository.AssistantAppearanceConfig
+import com.example.data.repository.AssistantColorTheme
+import com.example.data.repository.AssistantPersonality
+import com.example.data.repository.AssistantShape
 import com.example.domain.JarvisCoreEngine
 import com.example.ui.components.ArcReactorVisualizer
 import com.example.ui.components.JarvisState
@@ -104,6 +108,7 @@ fun AssistantOverlayContent(
     val queryInput by engine.currentQueryInput.collectAsState()
     val isSpeaking by engine.isTtsSpeaking.collectAsState()
     val isMuted by engine.isMuted.collectAsState()
+    val config by engine.appearanceConfig.collectAsState()
 
     var showTextInput by remember { mutableStateOf(false) }
 
@@ -118,9 +123,9 @@ fun AssistantOverlayContent(
         label = "pulse_scale"
     )
 
-    // Auto-listen on entry if in standby
+    // Auto-listen on entry if in standby and configured
     LaunchedEffect(Unit) {
-        if (jarvisState != JarvisState.LISTENING) {
+        if (config.autoListenOnOpen && jarvisState != JarvisState.LISTENING) {
             engine.toggleVoiceRecognition()
         }
     }
@@ -128,7 +133,7 @@ fun AssistantOverlayContent(
     Box(
         modifier = modifier
             .fillMaxSize()
-            .background(JarvisObsidian.copy(alpha = 0.85f))
+            .background(JarvisObsidian.copy(alpha = 0.88f))
             .clickable(
                 interactionSource = remember { MutableInteractionSource() },
                 indication = null,
@@ -145,7 +150,7 @@ fun AssistantOverlayContent(
             border = BorderStroke(
                 1.5.dp,
                 Brush.verticalGradient(
-                    listOf(JarvisCyan, JarvisCardBorder.copy(alpha = 0.6f))
+                    listOf(config.colorTheme.primaryColor, JarvisCardBorder.copy(alpha = 0.6f))
                 )
             ),
             modifier = Modifier
@@ -177,22 +182,22 @@ fun AssistantOverlayContent(
                                 .clip(CircleShape)
                                 .background(
                                     when (jarvisState) {
-                                        JarvisState.LISTENING -> JarvisCyan
+                                        JarvisState.LISTENING -> config.colorTheme.accentColor
                                         JarvisState.PROCESSING -> JarvisAmber
                                         JarvisState.SPEAKING -> JarvisGreen
                                         JarvisState.ALERT -> JarvisRed
-                                        JarvisState.STANDBY -> JarvisCyan.copy(alpha = 0.5f)
+                                        JarvisState.STANDBY -> config.colorTheme.primaryColor.copy(alpha = 0.5f)
                                     }
                                 )
                         )
                         Spacer(modifier = Modifier.width(8.dp))
                         Text(
-                            text = "J.A.R.V.I.S. ASSISTANT OVERLAY",
-                            color = JarvisCyanLight,
+                            text = "${config.personality.displayName.uppercase()} OVERLAY",
+                            color = config.colorTheme.accentColor,
                             fontSize = 11.sp,
                             fontWeight = FontWeight.Bold,
                             fontFamily = FontFamily.Monospace,
-                            letterSpacing = 1.5.sp
+                            letterSpacing = 1.2.sp
                         )
                     }
 
@@ -227,17 +232,18 @@ fun AssistantOverlayContent(
 
                 Spacer(modifier = Modifier.height(8.dp))
 
-                // Arc Reactor Holographic Center Visualizer
+                // Customizable Assistant Visualizer (Siri Orb / Curved Pill / Reactor)
                 Box(
                     contentAlignment = Alignment.Center,
                     modifier = Modifier
-                        .size(140.dp)
-                        .padding(vertical = 4.dp)
+                        .fillMaxWidth()
+                        .padding(vertical = 6.dp)
                 ) {
-                    ArcReactorVisualizer(
+                    com.example.ui.components.AssistantShapeContainer(
                         state = jarvisState,
+                        config = config,
                         audioLevel = rmsAudio,
-                        modifier = Modifier.size(130.dp)
+                        onClick = { engine.toggleVoiceRecognition() }
                     )
                 }
 
@@ -259,13 +265,13 @@ fun AssistantOverlayContent(
                 Text(
                     text = when (jarvisState) {
                         JarvisState.LISTENING -> "Listening to your voice..."
-                        JarvisState.PROCESSING -> "Analyzing command & telemetry..."
-                        JarvisState.SPEAKING -> "J.A.R.V.I.S. Responding..."
+                        JarvisState.PROCESSING -> "Analyzing command..."
+                        JarvisState.SPEAKING -> "Assistant Responding..."
                         JarvisState.ALERT -> "Tactical Protocol Engaged"
-                        JarvisState.STANDBY -> "Tap microphone or speak"
+                        JarvisState.STANDBY -> if (config.continuousVoiceConversation) "Hands-free voice ready" else "Tap visualizer or speak"
                     },
                     color = when (jarvisState) {
-                        JarvisState.LISTENING -> JarvisCyan
+                        JarvisState.LISTENING -> config.colorTheme.accentColor
                         JarvisState.PROCESSING -> JarvisAmber
                         JarvisState.SPEAKING -> JarvisGreen
                         JarvisState.ALERT -> JarvisRed
@@ -283,7 +289,7 @@ fun AssistantOverlayContent(
                     Surface(
                         color = JarvisSpaceDark.copy(alpha = 0.8f),
                         shape = RoundedCornerShape(12.dp),
-                        border = BorderStroke(1.dp, JarvisCyanGlow),
+                        border = BorderStroke(1.dp, config.colorTheme.primaryColor.copy(alpha = 0.4f)),
                         modifier = Modifier.fillMaxWidth()
                     ) {
                         Row(
@@ -292,7 +298,7 @@ fun AssistantOverlayContent(
                         ) {
                             Text(
                                 text = "YOU: ",
-                                color = JarvisCyanLight,
+                                color = config.colorTheme.accentColor,
                                 fontSize = 11.sp,
                                 fontWeight = FontWeight.Bold,
                                 fontFamily = FontFamily.Monospace
@@ -312,7 +318,7 @@ fun AssistantOverlayContent(
                 Surface(
                     color = JarvisSpaceMid.copy(alpha = 0.9f),
                     shape = RoundedCornerShape(16.dp),
-                    border = BorderStroke(1.dp, JarvisCardBorderCyan.copy(alpha = 0.4f)),
+                    border = BorderStroke(1.dp, config.colorTheme.primaryColor.copy(alpha = 0.5f)),
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     Column(modifier = Modifier.padding(14.dp)) {
@@ -322,8 +328,8 @@ fun AssistantOverlayContent(
                             modifier = Modifier.fillMaxWidth()
                         ) {
                             Text(
-                                text = "J.A.R.V.I.S. INTELLIGENCE",
-                                color = JarvisCyan,
+                                text = "${config.personality.displayName.uppercase()} RESPONSE",
+                                color = config.colorTheme.accentColor,
                                 fontSize = 10.sp,
                                 fontWeight = FontWeight.Bold,
                                 fontFamily = FontFamily.Monospace,
@@ -382,7 +388,7 @@ fun AssistantOverlayContent(
                             .background(
                                 Brush.radialGradient(
                                     listOf(
-                                        if (jarvisState == JarvisState.LISTENING) JarvisCyan else JarvisBlue,
+                                        if (jarvisState == JarvisState.LISTENING) config.colorTheme.accentColor else config.colorTheme.primaryColor,
                                         JarvisObsidian
                                     )
                                 )

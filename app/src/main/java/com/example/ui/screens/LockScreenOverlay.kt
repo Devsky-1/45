@@ -91,6 +91,7 @@ fun LockScreenOverlay(
     val reminders by viewModel.reminders.collectAsStateWithLifecycle()
     val audioLevel by viewModel.rmsAudioLevel.collectAsStateWithLifecycle()
     val isMuted by viewModel.isMuted.collectAsStateWithLifecycle()
+    val config by viewModel.appearanceConfig.collectAsStateWithLifecycle()
 
     var currentTime by remember { mutableStateOf("") }
     var currentDate by remember { mutableStateOf("") }
@@ -191,16 +192,16 @@ fun LockScreenOverlay(
 
             Spacer(modifier = Modifier.height(24.dp))
 
-            // LOCK SCREEN ARC REACTOR AMBIENT CORE
+            // LOCK SCREEN AMBIENT CORE VISUALIZER
             Box(
                 contentAlignment = Alignment.Center,
                 modifier = Modifier
                     .padding(vertical = 4.dp)
             ) {
-                ArcReactorVisualizer(
+                com.example.ui.components.AssistantShapeContainer(
                     state = jarvisState,
+                    config = config,
                     audioLevel = audioLevel,
-                    size = 175.dp,
                     onClick = { viewModel.toggleVoiceRecognition() }
                 )
             }

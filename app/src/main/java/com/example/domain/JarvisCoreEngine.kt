@@ -10,6 +10,11 @@ import com.example.data.db.JarvisDatabase
 import com.example.data.db.JarvisNoteEntity
 import com.example.data.db.QuickCommandEntity
 import com.example.data.db.ReminderEntity
+import com.example.data.repository.AssistantAppearanceConfig
+import com.example.data.repository.AssistantColorTheme
+import com.example.data.repository.AssistantPersonality
+import com.example.data.repository.AssistantPreferencesManager
+import com.example.data.repository.AssistantShape
 import com.example.data.repository.JarvisRepository
 import com.example.device.ActiveTimer
 import com.example.device.DeviceController
@@ -33,10 +38,13 @@ class JarvisCoreEngine private constructor(val context: Context) {
     private val engineScope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
     private val database = JarvisDatabase.getDatabase(context, engineScope)
     val repository = JarvisRepository(database.jarvisDao())
+    val preferencesManager = AssistantPreferencesManager(context)
 
     val deviceController = DeviceController(context, engineScope)
     val ttsHelper = TextToSpeechHelper(context)
     val speechHelper = SpeechRecognizerHelper(context)
+
+    val appearanceConfig: StateFlow<AssistantAppearanceConfig> = preferencesManager.configFlow
 
     // Data streams from Room
     val messages: StateFlow<List<ChatMessageEntity>> = repository.allMessages
@@ -73,6 +81,10 @@ class JarvisCoreEngine private constructor(val context: Context) {
     val isMuted: StateFlow<Boolean> = ttsHelper.isMuted
 
     init {
+        // Apply initial TTS settings
+        ttsHelper.setPitch(appearanceConfig.value.speechPitch)
+        ttsHelper.setSpeechRate(appearanceConfig.value.speechSpeed)
+
         // Observe TTS state to update visualizer
         engineScope.launch {
             ttsHelper.isSpeaking.collect { speaking ->
@@ -105,6 +117,34 @@ class JarvisCoreEngine private constructor(val context: Context) {
                         if (_jarvisState.value == JarvisState.LISTENING) {
                             _jarvisState.value = JarvisState.STANDBY
                         }
+                    }
+                }
+            }
+        }
+
+        // Dynamic config observer
+        engineScope.launch {
+            appearanceConfig.collect { config ->
+                ttsHelper.setPitch(config.speechPitch)
+                ttsHelper.setSpeechRate(config.speechSpeed)
+            }
+        }
+
+        // Auto re-listen on continuous conversation after speech completes
+        ttsHelper.onSpeechCompleted = {
+            if (appearanceConfig.value.continuousVoiceConversation && !isMuted.value) {
+                engineScope.launch {
+                    kotlinx.coroutines.delay(400)
+                    if (_jarvisState.value == JarvisState.STANDBY) {
+                        deviceController.vibrateHaptic(30)
+                        speechHelper.startListening(
+                            onResult = { spokenText ->
+                                processUserQuery(spokenText)
+                            },
+                            onError = {
+                                _jarvisState.value = JarvisState.STANDBY
+                            }
+                        )
                     }
                 }
             }
@@ -266,11 +306,12 @@ class JarvisCoreEngine private constructor(val context: Context) {
             }
 
             is ParsedJarvisCommand.GeneralQuery -> {
-                // Call Gemini API or fallback to smart Jarvis offline reasoning
+                // Call Gemini API or fallback to smart Jarvis offline reasoning with selected personality
                 val recentMessages = messages.value.takeLast(6).map { it.sender to it.text }
                 val aiResult = GeminiClient.askJarvis(
                     userPrompt = command.query,
-                    conversationHistory = recentMessages
+                    conversationHistory = recentMessages,
+                    systemInstruction = appearanceConfig.value.personality.promptPrefix
                 )
                 val reply = aiResult.getOrDefault("Understood, sir. Subroutines updated.")
                 respondAsJarvis(reply, onResponseReady = onResponseReady)

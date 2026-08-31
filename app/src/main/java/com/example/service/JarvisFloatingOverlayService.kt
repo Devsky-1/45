@@ -27,6 +27,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Mic
 import androidx.compose.material3.Icon
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -44,6 +45,10 @@ import androidx.savedstate.SavedStateRegistry
 import androidx.savedstate.SavedStateRegistryController
 import androidx.savedstate.SavedStateRegistryOwner
 import androidx.savedstate.setViewTreeSavedStateRegistryOwner
+import com.example.data.repository.AssistantAppearanceConfig
+import com.example.data.repository.AssistantColorTheme
+import com.example.data.repository.AssistantPersonality
+import com.example.data.repository.AssistantShape
 import com.example.ui.screens.JarvisAssistActivity
 import com.example.ui.theme.JarvisCyan
 import com.example.ui.theme.JarvisObsidian
@@ -114,10 +119,15 @@ class JarvisFloatingOverlayService : Service(), LifecycleOwner, SavedStateRegist
             setViewTreeLifecycleOwner(this@JarvisFloatingOverlayService)
             setViewTreeSavedStateRegistryOwner(this@JarvisFloatingOverlayService)
             setContent {
+                val engine = com.example.domain.JarvisCoreEngine.getInstance(applicationContext)
+                val config by engine.appearanceConfig.collectAsState()
+                val jarvisState by engine.jarvisState.collectAsState()
+                val rmsAudio by engine.rmsAudioLevel.collectAsState()
+
                 val infiniteTransition = rememberInfiniteTransition(label = "bubble_glow")
                 val glowScale by infiniteTransition.animateFloat(
-                    initialValue = 0.95f,
-                    targetValue = 1.05f,
+                    initialValue = 0.96f,
+                    targetValue = 1.04f,
                     animationSpec = infiniteRepeatable(
                         animation = tween(1400, easing = FastOutSlowInEasing),
                         repeatMode = RepeatMode.Reverse
@@ -129,28 +139,30 @@ class JarvisFloatingOverlayService : Service(), LifecycleOwner, SavedStateRegist
                     contentAlignment = Alignment.Center,
                     modifier = Modifier
                         .scale(glowScale)
-                        .size(56.dp)
-                        .clip(CircleShape)
-                        .background(
-                            Brush.radialGradient(
-                                listOf(JarvisCyan, JarvisObsidian)
-                            )
-                        )
-                        .padding(3.dp)
+                        .padding(4.dp)
                 ) {
-                    Box(
-                        contentAlignment = Alignment.Center,
-                        modifier = Modifier
-                            .size(50.dp)
-                            .clip(CircleShape)
-                            .background(JarvisObsidian)
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.Mic,
-                            contentDescription = "JARVIS Overlay",
-                            tint = JarvisCyan,
-                            modifier = Modifier.size(24.dp)
-                        )
+                    when (config.shape) {
+                        com.example.data.repository.AssistantShape.CURVED_PILL -> {
+                            com.example.ui.components.CurvedPillVisualizer(
+                                state = jarvisState,
+                                colorTheme = config.colorTheme,
+                                audioLevel = rmsAudio,
+                                width = 160.dp,
+                                height = 48.dp,
+                                glowIntensity = config.glowIntensity,
+                                onClick = { openAssistantOverlay() }
+                            )
+                        }
+                        else -> {
+                            com.example.ui.components.SiriOrbVisualizer(
+                                state = jarvisState,
+                                colorTheme = config.colorTheme,
+                                audioLevel = rmsAudio,
+                                size = 60.dp,
+                                glowIntensity = config.glowIntensity,
+                                onClick = { openAssistantOverlay() }
+                            )
+                        }
                     }
                 }
             }

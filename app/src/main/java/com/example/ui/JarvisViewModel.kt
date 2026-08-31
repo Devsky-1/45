@@ -34,10 +34,13 @@ class JarvisViewModel(application: Application) : AndroidViewModel(application) 
 
     private val database = JarvisDatabase.getDatabase(application, viewModelScope)
     private val repository = JarvisRepository(database.jarvisDao())
+    val preferencesManager = com.example.data.repository.AssistantPreferencesManager(application)
 
     val deviceController = DeviceController(application, viewModelScope)
     val ttsHelper = TextToSpeechHelper(application)
     val speechHelper = SpeechRecognizerHelper(application)
+
+    val appearanceConfig: StateFlow<com.example.data.repository.AssistantAppearanceConfig> = preferencesManager.configFlow
 
     // Data streams from Room
     val messages: StateFlow<List<ChatMessageEntity>> = repository.allMessages
@@ -66,7 +69,7 @@ class JarvisViewModel(application: Application) : AndroidViewModel(application) 
     private val _activeProtocol = MutableStateFlow("STANDARD PROTOCOL")
     val activeProtocol: StateFlow<String> = _activeProtocol.asStateFlow()
 
-    private val _selectedTab = MutableStateFlow(0) // 0: Core HUD, 1: Lock Screen Simulator, 2: Diagnostics, 3: Memory Matrix
+    private val _selectedTab = MutableStateFlow(0) // 0: Core HUD, 1: Studio Customize, 2: Lock Screen, 3: Diagnostics, 4: Memory
     val selectedTab: StateFlow<Int> = _selectedTab.asStateFlow()
 
     private val _isLockScreenActive = MutableStateFlow(false)
@@ -83,6 +86,10 @@ class JarvisViewModel(application: Application) : AndroidViewModel(application) 
     val isMuted: StateFlow<Boolean> = ttsHelper.isMuted
 
     init {
+        // Initial speech settings
+        ttsHelper.setPitch(appearanceConfig.value.speechPitch)
+        ttsHelper.setSpeechRate(appearanceConfig.value.speechSpeed)
+
         // Observe TTS state to update visualizer
         viewModelScope.launch {
             ttsHelper.isSpeaking.collect { speaking ->
@@ -119,6 +126,75 @@ class JarvisViewModel(application: Application) : AndroidViewModel(application) 
                 }
             }
         }
+
+        // Dynamic config observer for TTS
+        viewModelScope.launch {
+            appearanceConfig.collect { config ->
+                ttsHelper.setPitch(config.speechPitch)
+                ttsHelper.setSpeechRate(config.speechSpeed)
+            }
+        }
+
+        // Auto re-listen on continuous conversation after speech completes
+        ttsHelper.onSpeechCompleted = {
+            if (appearanceConfig.value.continuousVoiceConversation && !isMuted.value) {
+                viewModelScope.launch {
+                    kotlinx.coroutines.delay(400)
+                    if (_jarvisState.value == JarvisState.STANDBY) {
+                        deviceController.vibrateHaptic(30)
+                        speechHelper.startListening(
+                            onResult = { spokenText ->
+                                processUserQuery(spokenText)
+                            },
+                            onError = {
+                                _jarvisState.value = JarvisState.STANDBY
+                            }
+                        )
+                    }
+                }
+            }
+        }
+    }
+
+    fun setAssistantShape(shape: com.example.data.repository.AssistantShape) {
+        preferencesManager.setShape(shape)
+        deviceController.vibrateHaptic(30)
+    }
+
+    fun setAssistantColorTheme(theme: com.example.data.repository.AssistantColorTheme) {
+        preferencesManager.setColorTheme(theme)
+        deviceController.vibrateHaptic(30)
+    }
+
+    fun setAssistantPersonality(personality: com.example.data.repository.AssistantPersonality) {
+        preferencesManager.setPersonality(personality)
+        deviceController.vibrateHaptic(30)
+    }
+
+    fun setContinuousVoice(enabled: Boolean) {
+        preferencesManager.setContinuousVoice(enabled)
+        deviceController.vibrateHaptic(20)
+    }
+
+    fun setAutoListenOnOpen(enabled: Boolean) {
+        preferencesManager.setAutoListen(enabled)
+        deviceController.vibrateHaptic(20)
+    }
+
+    fun setGlowIntensity(intensity: Float) {
+        preferencesManager.setGlowIntensity(intensity)
+    }
+
+    fun setOrbScale(scale: Float) {
+        preferencesManager.setOrbScale(scale)
+    }
+
+    fun setSpeechSpeed(speed: Float) {
+        preferencesManager.setSpeechSpeed(speed)
+    }
+
+    fun setSpeechPitch(pitch: Float) {
+        preferencesManager.setSpeechPitch(pitch)
     }
 
     fun setQueryInput(text: String) {
@@ -269,11 +345,12 @@ class JarvisViewModel(application: Application) : AndroidViewModel(application) 
             }
 
             is ParsedJarvisCommand.GeneralQuery -> {
-                // Query Gemini AI model
+                // Query Gemini AI model with chosen personality
                 val history = messages.value.takeLast(6).map { Pair(it.sender, it.text) }
                 val result = GeminiClient.askJarvis(
                     userPrompt = rawQuery,
-                    conversationHistory = history
+                    conversationHistory = history,
+                    systemInstruction = appearanceConfig.value.personality.promptPrefix
                 )
                 val answer = result.getOrElse {
                     GeminiClient.generateOfflineJarvisResponse(rawQuery)

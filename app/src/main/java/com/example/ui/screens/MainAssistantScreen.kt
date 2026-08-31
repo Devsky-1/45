@@ -99,6 +99,7 @@ fun MainAssistantScreen(
     val audioLevel by viewModel.rmsAudioLevel.collectAsStateWithLifecycle()
     val isMuted by viewModel.isMuted.collectAsStateWithLifecycle()
     val activeProtocol by viewModel.activeProtocol.collectAsStateWithLifecycle()
+    val config by viewModel.appearanceConfig.collectAsStateWithLifecycle()
 
     val listState = rememberLazyListState()
 
@@ -230,7 +231,7 @@ fun MainAssistantScreen(
                 .weight(1f)
                 .fillMaxWidth()
         ) {
-            // Arc Reactor Visualizer at the top of the HUD
+            // Customizable Visualizer at the top of the HUD
             item {
                 Box(
                     contentAlignment = Alignment.Center,
@@ -238,10 +239,10 @@ fun MainAssistantScreen(
                         .fillMaxWidth()
                         .padding(vertical = 8.dp)
                 ) {
-                    ArcReactorVisualizer(
+                    com.example.ui.components.AssistantShapeContainer(
                         state = jarvisState,
+                        config = config,
                         audioLevel = audioLevel,
-                        size = 190.dp,
                         onClick = { viewModel.toggleVoiceRecognition() }
                     )
                 }
