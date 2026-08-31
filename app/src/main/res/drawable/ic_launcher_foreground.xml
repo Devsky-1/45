@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:aapt="http://schemas.android.com/aapt"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+
+    <!-- Outer Arc Reactor Ring -->
+    <path
+        android:pathData="M54,54m-33,0a33,33 0,1 1,66 0a33,33 0,1 1,-66 0"
+        android:strokeColor="#FF00E5FF"
+        android:strokeWidth="3.5" />
+
+    <!-- Dashed HUD Ring Nodes -->
+    <path
+        android:pathData="M54,15 L54,23 M54,85 L54,93 M15,54 L23,54 M85,54 L93,54"
+        android:strokeColor="#FF00E5FF"
+        android:strokeWidth="2.5" />
+
+    <path
+        android:pathData="M26.4,26.4 L32.1,32.1 M75.9,75.9 L81.6,81.6 M26.4,81.6 L32.1,75.9 M75.9,32.1 L81.6,26.4"
+        android:strokeColor="#802979FF"
+        android:strokeWidth="2" />
+
+    <!-- Intermediate Concentric Segment Ring -->
+    <path
+        android:pathData="M54,54m-24,0a24,24 0,1 1,48 0a24,24 0,1 1,-48 0"
+        android:strokeColor="#FF2979FF"
+        android:strokeWidth="2" />
+
+    <!-- Inner High Energy Reactor Core (Glowing Hexagon / Triangle) -->
+    <path
+        android:pathData="M54,36 L69.5,63 L38.5,63 Z"
+        android:strokeColor="#FF00E5FF"
+        android:strokeWidth="2.5" />
+
+    <!-- Central Fusion Core -->
+    <path
+        android:pathData="M54,54m-7,0a7,7 0,1 1,14 0a7,7 0,1 1,-14 0"
+        android:fillColor="#FFFFFFFF"
+        android:strokeColor="#FF00E5FF"
+        android:strokeWidth="1.5" />
+
+    <!-- Radiating pulse dots -->
+    <path
+        android:pathData="M54,54m-2.5,0a2.5,2.5 0,1 1,5 0a2.5,2.5 0,1 1,-5 0"
+        android:fillColor="#FF00E5FF" />
+</vector>

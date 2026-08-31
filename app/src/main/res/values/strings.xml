@@ -1,0 +1,11 @@
+<resources>
+    <string name="app_name">JARVIS</string>
+    <string name="jarvis_greeting">At your service, sir.</string>
+    <string name="jarvis_listening">Listening for commands...</string>
+    <string name="jarvis_processing">Processing query...</string>
+    <string name="jarvis_ready">System Online &amp; Operational</string>
+    <string name="tile_jarvis_assist">JARVIS Assist</string>
+    <string name="notification_channel_name">JARVIS Assistant Services</string>
+    <string name="notification_channel_desc">Active background assistant and tactical quick controls</string>
+</resources>
+

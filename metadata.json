@@ -1,0 +1,8 @@
+{
+  "name": "JARVIS Assistant",
+  "description": "An intelligent AI assistant featuring lock-screen HUD overlay, voice commands, Gemini AI reasoning, smart quick actions, and device status control.",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}
