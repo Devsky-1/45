@@ -39,8 +39,10 @@ class JarvisViewModel(application: Application) : AndroidViewModel(application) 
     val deviceController = DeviceController(application, viewModelScope)
     val ttsHelper = TextToSpeechHelper(application)
     val speechHelper = SpeechRecognizerHelper(application)
+    val wakeWordEngine = com.example.audio.WakeWordEngine(application)
 
     val appearanceConfig: StateFlow<com.example.data.repository.AssistantAppearanceConfig> = preferencesManager.configFlow
+    val isAmbientWakeWordListening: StateFlow<Boolean> = wakeWordEngine.isAmbientListening
 
     // Data streams from Room
     val messages: StateFlow<List<ChatMessageEntity>> = repository.allMessages
@@ -90,13 +92,23 @@ class JarvisViewModel(application: Application) : AndroidViewModel(application) 
         ttsHelper.setPitch(appearanceConfig.value.speechPitch)
         ttsHelper.setSpeechRate(appearanceConfig.value.speechSpeed)
 
-        // Observe TTS state to update visualizer
+        // Configure Wake Word Engine
+        wakeWordEngine.configure(
+            wakeWord = appearanceConfig.value.effectiveWakeWord,
+            enabled = appearanceConfig.value.wakeWordEnabled
+        )
+
+        startAmbientWakeWordListener()
+
+        // Observe TTS state to update visualizer & pause/resume wake word
         viewModelScope.launch {
             ttsHelper.isSpeaking.collect { speaking ->
                 if (speaking && _jarvisState.value != JarvisState.LISTENING) {
                     _jarvisState.value = JarvisState.SPEAKING
+                    wakeWordEngine.pause()
                 } else if (!speaking && _jarvisState.value == JarvisState.SPEAKING) {
                     _jarvisState.value = JarvisState.STANDBY
+                    wakeWordEngine.resume()
                 }
             }
         }
@@ -107,6 +119,7 @@ class JarvisViewModel(application: Application) : AndroidViewModel(application) 
                 when (state) {
                     is SpeechState.Listening -> {
                         _jarvisState.value = JarvisState.LISTENING
+                        wakeWordEngine.pause()
                     }
                     is SpeechState.PartialResult -> {
                         _currentQueryInput.value = state.text
@@ -117,21 +130,27 @@ class JarvisViewModel(application: Application) : AndroidViewModel(application) 
                     }
                     is SpeechState.Error -> {
                         _jarvisState.value = JarvisState.STANDBY
+                        wakeWordEngine.resume()
                     }
                     SpeechState.Idle -> {
                         if (_jarvisState.value == JarvisState.LISTENING) {
                             _jarvisState.value = JarvisState.STANDBY
+                            wakeWordEngine.resume()
                         }
                     }
                 }
             }
         }
 
-        // Dynamic config observer for TTS
+        // Dynamic config observer for TTS & Wake Word
         viewModelScope.launch {
             appearanceConfig.collect { config ->
                 ttsHelper.setPitch(config.speechPitch)
                 ttsHelper.setSpeechRate(config.speechSpeed)
+                wakeWordEngine.configure(
+                    wakeWord = config.effectiveWakeWord,
+                    enabled = config.wakeWordEnabled
+                )
             }
         }
 
@@ -148,9 +167,35 @@ class JarvisViewModel(application: Application) : AndroidViewModel(application) 
                             },
                             onError = {
                                 _jarvisState.value = JarvisState.STANDBY
+                                wakeWordEngine.resume()
                             }
                         )
                     }
+                }
+            } else {
+                wakeWordEngine.resume()
+            }
+        }
+    }
+
+    private fun startAmbientWakeWordListener() {
+        wakeWordEngine.startAmbientListening { command ->
+            viewModelScope.launch(Dispatchers.Main) {
+                if (appearanceConfig.value.wakeHapticFeedback) {
+                    deviceController.vibrateHaptic(60)
+                }
+
+                if (!command.isNullOrBlank()) {
+                    _currentQueryInput.value = command
+                    processUserQuery(command)
+                } else {
+                    val wakeGreeting = when (appearanceConfig.value.personality) {
+                        com.example.data.repository.AssistantPersonality.JARVIS_AI -> "Online, sir. How may I assist?"
+                        com.example.data.repository.AssistantPersonality.SIRI_PRO -> "I'm listening."
+                        com.example.data.repository.AssistantPersonality.PRO_EXECUTIVE -> "Ready. Go ahead."
+                    }
+                    _jarvisState.value = JarvisState.LISTENING
+                    ttsHelper.speak(wakeGreeting)
                 }
             }
         }
@@ -179,6 +224,39 @@ class JarvisViewModel(application: Application) : AndroidViewModel(application) 
     fun setAutoListenOnOpen(enabled: Boolean) {
         preferencesManager.setAutoListen(enabled)
         deviceController.vibrateHaptic(20)
+    }
+
+    fun setWakeWordEnabled(enabled: Boolean) {
+        preferencesManager.setWakeWordEnabled(enabled)
+        deviceController.vibrateHaptic(20)
+    }
+
+    fun setWakeWordPreset(preset: String) {
+        preferencesManager.setWakeWordPreset(preset)
+        deviceController.vibrateHaptic(20)
+    }
+
+    fun setCustomWakeWord(word: String) {
+        preferencesManager.setCustomWakeWord(word)
+        deviceController.vibrateHaptic(20)
+    }
+
+    fun setWakeHapticFeedback(enabled: Boolean) {
+        preferencesManager.setWakeHapticFeedback(enabled)
+    }
+
+    fun setWakeChimeSound(enabled: Boolean) {
+        preferencesManager.setWakeChimeSound(enabled)
+    }
+
+    fun testWakeWord(customWord: String? = null) {
+        val word = customWord ?: appearanceConfig.value.effectiveWakeWord
+        deviceController.vibrateHaptic(70)
+        wakeWordEngine.playActivationChime()
+        val reply = "Wake word '$word' verified and active, sir. You can say '$word' anytime or tap the visualizer to speak."
+        viewModelScope.launch(Dispatchers.Main) {
+            ttsHelper.speak(reply)
+        }
     }
 
     fun setGlowIntensity(intensity: Float) {
@@ -424,6 +502,7 @@ class JarvisViewModel(application: Application) : AndroidViewModel(application) 
 
     override fun onCleared() {
         super.onCleared()
+        wakeWordEngine.stopAmbientListening()
         ttsHelper.shutdown()
         speechHelper.stopListening()
     }

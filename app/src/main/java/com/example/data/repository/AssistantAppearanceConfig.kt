@@ -122,17 +122,40 @@ enum class AssistantPersonality(val displayName: String, val promptPrefix: Strin
     )
 }
 
+val WAKE_WORD_PRESETS = listOf(
+    "Hey Jarvis",
+    "Jarvis",
+    "Hey Siri",
+    "Computer",
+    "Friday",
+    "Edith",
+    "Hey Assistant",
+    "Custom"
+)
+
 data class AssistantAppearanceConfig(
     val shape: AssistantShape = AssistantShape.SIRI_ORB,
     val colorTheme: AssistantColorTheme = AssistantColorTheme.SIRI_IRIDESCENT,
     val personality: AssistantPersonality = AssistantPersonality.PRO_EXECUTIVE,
     val autoListenOnOpen: Boolean = true,
     val continuousVoiceConversation: Boolean = true,
+    val wakeWordEnabled: Boolean = true,
+    val wakeWordPreset: String = "Hey Jarvis",
+    val customWakeWord: String = "Jarvis",
+    val wakeHapticFeedback: Boolean = true,
+    val wakeChimeSound: Boolean = true,
     val glowIntensity: Float = 1.0f, // 0.5f to 1.5f
     val orbScale: Float = 1.0f, // 0.8f to 1.3f
     val speechSpeed: Float = 1.0f, // 0.8f to 1.4f
     val speechPitch: Float = 1.0f // 0.8f to 1.3f
-)
+) {
+    val effectiveWakeWord: String
+        get() = if (wakeWordPreset.equals("Custom", ignoreCase = true)) {
+            customWakeWord.trim().ifBlank { "Jarvis" }
+        } else {
+            wakeWordPreset
+        }
+}
 
 class AssistantPreferencesManager(context: Context) {
     private val prefs: SharedPreferences =
@@ -149,6 +172,11 @@ class AssistantPreferencesManager(context: Context) {
             ?: AssistantPersonality.PRO_EXECUTIVE.name
         val autoListen = prefs.getBoolean("auto_listen", true)
         val continuousVoice = prefs.getBoolean("continuous_voice", true)
+        val wakeEnabled = prefs.getBoolean("wake_word_enabled", true)
+        val wakePreset = prefs.getString("wake_word_preset", "Hey Jarvis") ?: "Hey Jarvis"
+        val customWake = prefs.getString("custom_wake_word", "Jarvis") ?: "Jarvis"
+        val wakeHaptics = prefs.getBoolean("wake_haptic_feedback", true)
+        val wakeChime = prefs.getBoolean("wake_chime_sound", true)
         val glow = prefs.getFloat("glow_intensity", 1.0f)
         val scale = prefs.getFloat("orb_scale", 1.0f)
         val speed = prefs.getFloat("speech_speed", 1.0f)
@@ -164,6 +192,11 @@ class AssistantPreferencesManager(context: Context) {
             personality = personality,
             autoListenOnOpen = autoListen,
             continuousVoiceConversation = continuousVoice,
+            wakeWordEnabled = wakeEnabled,
+            wakeWordPreset = wakePreset,
+            customWakeWord = customWake,
+            wakeHapticFeedback = wakeHaptics,
+            wakeChimeSound = wakeChime,
             glowIntensity = glow,
             orbScale = scale,
             speechSpeed = speed,
@@ -180,6 +213,11 @@ class AssistantPreferencesManager(context: Context) {
             .putString("personality", newConfig.personality.name)
             .putBoolean("auto_listen", newConfig.autoListenOnOpen)
             .putBoolean("continuous_voice", newConfig.continuousVoiceConversation)
+            .putBoolean("wake_word_enabled", newConfig.wakeWordEnabled)
+            .putString("wake_word_preset", newConfig.wakeWordPreset)
+            .putString("custom_wake_word", newConfig.customWakeWord)
+            .putBoolean("wake_haptic_feedback", newConfig.wakeHapticFeedback)
+            .putBoolean("wake_chime_sound", newConfig.wakeChimeSound)
             .putFloat("glow_intensity", newConfig.glowIntensity)
             .putFloat("orb_scale", newConfig.orbScale)
             .putFloat("speech_speed", newConfig.speechSpeed)
@@ -205,6 +243,26 @@ class AssistantPreferencesManager(context: Context) {
 
     fun setAutoListen(enabled: Boolean) {
         updateConfig { it.copy(autoListenOnOpen = enabled) }
+    }
+
+    fun setWakeWordEnabled(enabled: Boolean) {
+        updateConfig { it.copy(wakeWordEnabled = enabled) }
+    }
+
+    fun setWakeWordPreset(preset: String) {
+        updateConfig { it.copy(wakeWordPreset = preset) }
+    }
+
+    fun setCustomWakeWord(word: String) {
+        updateConfig { it.copy(customWakeWord = word.trim()) }
+    }
+
+    fun setWakeHapticFeedback(enabled: Boolean) {
+        updateConfig { it.copy(wakeHapticFeedback = enabled) }
+    }
+
+    fun setWakeChimeSound(enabled: Boolean) {
+        updateConfig { it.copy(wakeChimeSound = enabled) }
     }
 
     fun setGlowIntensity(intensity: Float) {

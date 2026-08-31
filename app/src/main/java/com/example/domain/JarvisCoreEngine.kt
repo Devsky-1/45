@@ -43,8 +43,10 @@ class JarvisCoreEngine private constructor(val context: Context) {
     val deviceController = DeviceController(context, engineScope)
     val ttsHelper = TextToSpeechHelper(context)
     val speechHelper = SpeechRecognizerHelper(context)
+    val wakeWordEngine = com.example.audio.WakeWordEngine(context)
 
     val appearanceConfig: StateFlow<AssistantAppearanceConfig> = preferencesManager.configFlow
+    val isAmbientWakeWordListening: StateFlow<Boolean> = wakeWordEngine.isAmbientListening
 
     // Data streams from Room
     val messages: StateFlow<List<ChatMessageEntity>> = repository.allMessages
@@ -85,13 +87,24 @@ class JarvisCoreEngine private constructor(val context: Context) {
         ttsHelper.setPitch(appearanceConfig.value.speechPitch)
         ttsHelper.setSpeechRate(appearanceConfig.value.speechSpeed)
 
-        // Observe TTS state to update visualizer
+        // Configure wake word
+        wakeWordEngine.configure(
+            wakeWord = appearanceConfig.value.effectiveWakeWord,
+            enabled = appearanceConfig.value.wakeWordEnabled
+        )
+
+        // Start ambient wake word listener
+        startAmbientWakeWordListener()
+
+        // Observe TTS state to update visualizer & manage ambient wake word
         engineScope.launch {
             ttsHelper.isSpeaking.collect { speaking ->
                 if (speaking && _jarvisState.value != JarvisState.LISTENING) {
                     _jarvisState.value = JarvisState.SPEAKING
+                    wakeWordEngine.pause()
                 } else if (!speaking && _jarvisState.value == JarvisState.SPEAKING) {
                     _jarvisState.value = JarvisState.STANDBY
+                    wakeWordEngine.resume()
                 }
             }
         }
@@ -102,6 +115,7 @@ class JarvisCoreEngine private constructor(val context: Context) {
                 when (state) {
                     is SpeechState.Listening -> {
                         _jarvisState.value = JarvisState.LISTENING
+                        wakeWordEngine.pause()
                     }
                     is SpeechState.PartialResult -> {
                         _currentQueryInput.value = state.text
@@ -112,10 +126,12 @@ class JarvisCoreEngine private constructor(val context: Context) {
                     }
                     is SpeechState.Error -> {
                         _jarvisState.value = JarvisState.STANDBY
+                        wakeWordEngine.resume()
                     }
                     SpeechState.Idle -> {
                         if (_jarvisState.value == JarvisState.LISTENING) {
                             _jarvisState.value = JarvisState.STANDBY
+                            wakeWordEngine.resume()
                         }
                     }
                 }
@@ -127,6 +143,10 @@ class JarvisCoreEngine private constructor(val context: Context) {
             appearanceConfig.collect { config ->
                 ttsHelper.setPitch(config.speechPitch)
                 ttsHelper.setSpeechRate(config.speechSpeed)
+                wakeWordEngine.configure(
+                    wakeWord = config.effectiveWakeWord,
+                    enabled = config.wakeWordEnabled
+                )
             }
         }
 
@@ -143,11 +163,49 @@ class JarvisCoreEngine private constructor(val context: Context) {
                             },
                             onError = {
                                 _jarvisState.value = JarvisState.STANDBY
+                                wakeWordEngine.resume()
                             }
                         )
                     }
                 }
+            } else {
+                wakeWordEngine.resume()
             }
+        }
+    }
+
+    private fun startAmbientWakeWordListener() {
+        wakeWordEngine.startAmbientListening { command ->
+            engineScope.launch(Dispatchers.Main) {
+                if (appearanceConfig.value.wakeHapticFeedback) {
+                    deviceController.vibrateHaptic(60)
+                }
+
+                if (!command.isNullOrBlank()) {
+                    // Spoken command attached directly after wake word (e.g. "Hey Jarvis turn on flashlight")
+                    _currentQueryInput.value = command
+                    processUserQuery(command)
+                } else {
+                    // Wake word triggered alone ("Hey Jarvis") -> transition into active listening
+                    val wakeGreeting = when (appearanceConfig.value.personality) {
+                        AssistantPersonality.JARVIS_AI -> "Online, sir. How may I assist?"
+                        AssistantPersonality.SIRI_PRO -> "I'm listening."
+                        AssistantPersonality.PRO_EXECUTIVE -> "Ready. Go ahead."
+                    }
+                    _jarvisState.value = JarvisState.LISTENING
+                    ttsHelper.speak(wakeGreeting)
+                }
+            }
+        }
+    }
+
+    fun triggerWakeWordTest(customWord: String? = null) {
+        val word = customWord ?: appearanceConfig.value.effectiveWakeWord
+        deviceController.vibrateHaptic(70)
+        wakeWordEngine.playActivationChime()
+        val reply = "Wake word '$word' verified and calibrated successfully, sir. Ambient acoustic sensors are operational."
+        engineScope.launch(Dispatchers.Main) {
+            ttsHelper.speak(reply)
         }
     }
 

@@ -1,6 +1,8 @@
 package com.example.ui.screens
 
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -18,28 +20,35 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.ColorLens
-import androidx.compose.material.icons.filled.GraphicEq
 import androidx.compose.material.icons.filled.Hearing
 import androidx.compose.material.icons.filled.Mic
 import androidx.compose.material.icons.filled.Palette
+import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Psychology
 import androidx.compose.material.icons.filled.RecordVoiceOver
 import androidx.compose.material.icons.filled.RoundedCorner
+import androidx.compose.material.icons.filled.Save
 import androidx.compose.material.icons.filled.Sensors
 import androidx.compose.material.icons.filled.Speed
 import androidx.compose.material.icons.filled.Tune
+import androidx.compose.material.icons.filled.Vibration
 import androidx.compose.material.icons.filled.VolumeUp
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Slider
 import androidx.compose.material3.SliderDefaults
 import androidx.compose.material3.Surface
@@ -48,6 +57,9 @@ import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -63,6 +75,7 @@ import com.example.data.repository.AssistantAppearanceConfig
 import com.example.data.repository.AssistantColorTheme
 import com.example.data.repository.AssistantPersonality
 import com.example.data.repository.AssistantShape
+import com.example.data.repository.WAKE_WORD_PRESETS
 import com.example.ui.JarvisViewModel
 import com.example.ui.components.AssistantShapeContainer
 import com.example.ui.components.HoloCard
@@ -76,6 +89,7 @@ import com.example.ui.theme.JarvisCyan
 import com.example.ui.theme.JarvisCyanLight
 import com.example.ui.theme.JarvisGreen
 import com.example.ui.theme.JarvisObsidian
+import com.example.ui.theme.JarvisRed
 import com.example.ui.theme.JarvisSpaceDark
 import com.example.ui.theme.JarvisSpaceMid
 import com.example.ui.theme.JarvisTextMuted
@@ -90,6 +104,9 @@ fun AssistantCustomizationScreen(
     val config by viewModel.appearanceConfig.collectAsStateWithLifecycle()
     val jarvisState by viewModel.jarvisState.collectAsStateWithLifecycle()
     val audioLevel by viewModel.rmsAudioLevel.collectAsStateWithLifecycle()
+    val isAmbientListening by viewModel.isAmbientWakeWordListening.collectAsStateWithLifecycle()
+
+    var customInputText by remember(config.customWakeWord) { mutableStateOf(config.customWakeWord) }
 
     Column(
         modifier = modifier
@@ -130,17 +147,44 @@ fun AssistantCustomizationScreen(
                     Spacer(modifier = Modifier.width(10.dp))
                     Column {
                         Text(
-                            text = "ASSISTANT STUDIO & APPEARANCE",
+                            text = "ASSISTANT STUDIO",
                             color = JarvisTextPrimary,
                             fontSize = 13.sp,
                             fontFamily = FontFamily.Monospace,
                             fontWeight = FontWeight.Bold
                         )
                         Text(
-                            text = "CUSTOMIZE SHAPE, GLOW, COLOR & VOICE",
+                            text = "WAKE WORD, SHAPE & PERSONALITY",
                             color = JarvisTextMuted,
                             fontSize = 9.sp,
                             fontFamily = FontFamily.Monospace
+                        )
+                    }
+                }
+
+                // Active Wake Word Pill
+                Surface(
+                    shape = RoundedCornerShape(12.dp),
+                    color = if (config.wakeWordEnabled) JarvisCyan.copy(alpha = 0.15f) else JarvisObsidian,
+                    border = BorderStroke(1.dp, if (config.wakeWordEnabled) JarvisCyanLight.copy(alpha = 0.6f) else JarvisCardBorder)
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .size(6.dp)
+                                .clip(CircleShape)
+                                .background(if (config.wakeWordEnabled && isAmbientListening) JarvisGreen else if (config.wakeWordEnabled) JarvisAmber else JarvisRed)
+                        )
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text(
+                            text = "\"${config.effectiveWakeWord}\"",
+                            color = if (config.wakeWordEnabled) JarvisCyanLight else JarvisTextMuted,
+                            fontSize = 10.sp,
+                            fontFamily = FontFamily.Monospace,
+                            fontWeight = FontWeight.Bold
                         )
                     }
                 }
@@ -151,11 +195,11 @@ fun AssistantCustomizationScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(horizontal = 16.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp)
+            verticalArrangement = Arrangement.spacedBy(14.dp)
         ) {
-            item { Spacer(modifier = Modifier.height(4.dp)) }
+            item { Spacer(modifier = Modifier.height(2.dp)) }
 
-            // 1. LIVE PREVIEW CARD
+            // 1. LIVE INTERACTIVE PREVIEW
             item {
                 Card(
                     shape = RoundedCornerShape(20.dp),
@@ -167,7 +211,7 @@ fun AssistantCustomizationScreen(
                         horizontalAlignment = Alignment.CenterHorizontally,
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(vertical = 20.dp, horizontal = 16.dp)
+                            .padding(vertical = 18.dp, horizontal = 16.dp)
                     ) {
                         Row(
                             verticalAlignment = Alignment.CenterVertically,
@@ -175,32 +219,39 @@ fun AssistantCustomizationScreen(
                             modifier = Modifier.fillMaxWidth()
                         ) {
                             Text(
-                                text = "LIVE VISUALIZER PREVIEW",
+                                text = "LIVE ASSISTANT PREVIEW",
                                 color = config.colorTheme.accentColor,
                                 fontSize = 11.sp,
                                 fontFamily = FontFamily.Monospace,
                                 fontWeight = FontWeight.Bold
                             )
-                            Text(
-                                text = "TAP TO TEST VOICE",
-                                color = JarvisTextMuted,
-                                fontSize = 9.sp,
-                                fontFamily = FontFamily.Monospace
-                            )
+                            Surface(
+                                shape = RoundedCornerShape(8.dp),
+                                color = config.colorTheme.primaryColor.copy(alpha = 0.2f),
+                                modifier = Modifier.padding(4.dp)
+                            ) {
+                                Text(
+                                    text = "TAP OR SPEAK TO TEST",
+                                    color = config.colorTheme.accentColor,
+                                    fontSize = 9.sp,
+                                    fontFamily = FontFamily.Monospace,
+                                    modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                                )
+                            }
                         }
 
-                        Spacer(modifier = Modifier.height(16.dp))
+                        Spacer(modifier = Modifier.height(12.dp))
 
-                        // Interactive Shape Container
+                        // Interactive Assistant Shape Container
                         AssistantShapeContainer(
                             state = jarvisState,
                             config = config,
                             audioLevel = audioLevel,
                             onClick = { viewModel.toggleVoiceRecognition() },
-                            modifier = Modifier.padding(vertical = 12.dp)
+                            modifier = Modifier.padding(vertical = 8.dp)
                         )
 
-                        Spacer(modifier = Modifier.height(12.dp))
+                        Spacer(modifier = Modifier.height(8.dp))
 
                         Text(
                             text = "${config.shape.displayName} • ${config.colorTheme.displayName}",
@@ -209,15 +260,273 @@ fun AssistantCustomizationScreen(
                             fontWeight = FontWeight.Bold,
                             fontFamily = FontFamily.SansSerif
                         )
+
+                        Text(
+                            text = if (config.wakeWordEnabled) "Wake word: \"${config.effectiveWakeWord}\" is active" else "Wake word detection disabled",
+                            color = if (config.wakeWordEnabled) JarvisCyanLight else JarvisTextMuted,
+                            fontSize = 10.sp,
+                            fontFamily = FontFamily.Monospace
+                        )
                     }
                 }
             }
 
-            // 2. SHAPE SELECTOR
+            // 2. WAKE WORD CONFIGURATION COMMAND CENTER
             item {
                 HoloCard(
-                    borderColor = config.colorTheme.primaryColor.copy(alpha = 0.5f)
+                    borderColor = if (config.wakeWordEnabled) JarvisCyan.copy(alpha = 0.6f) else JarvisCardBorder,
+                    glowEffect = config.wakeWordEnabled
                 ) {
+                    Column(modifier = Modifier.padding(16.dp)) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Icon(
+                                    imageVector = Icons.Default.Sensors,
+                                    contentDescription = "Wake Word",
+                                    tint = if (config.wakeWordEnabled) JarvisCyan else JarvisTextMuted,
+                                    modifier = Modifier.size(20.dp)
+                                )
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Column {
+                                    Text(
+                                        text = "WAKE WORD DETECTION",
+                                        color = JarvisTextPrimary,
+                                        fontSize = 12.sp,
+                                        fontFamily = FontFamily.Monospace,
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                    Text(
+                                        text = if (config.wakeWordEnabled) "Listening for \"${config.effectiveWakeWord}\"" else "Hands-free voice trigger paused",
+                                        color = if (config.wakeWordEnabled) JarvisGreen else JarvisTextMuted,
+                                        fontSize = 9.sp,
+                                        fontFamily = FontFamily.Monospace
+                                    )
+                                }
+                            }
+
+                            Switch(
+                                checked = config.wakeWordEnabled,
+                                onCheckedChange = { viewModel.setWakeWordEnabled(it) },
+                                colors = SwitchDefaults.colors(
+                                    checkedThumbColor = Color.White,
+                                    checkedTrackColor = JarvisCyan
+                                ),
+                                modifier = Modifier.testTag("switch_wake_word_master")
+                            )
+                        }
+
+                        AnimatedVisibility(
+                            visible = config.wakeWordEnabled,
+                            enter = fadeIn(),
+                            exit = fadeOut()
+                        ) {
+                            Column(modifier = Modifier.padding(top = 14.dp)) {
+                                Text(
+                                    text = "SELECT WAKE WORD PRESET",
+                                    color = JarvisCyanLight,
+                                    fontSize = 10.sp,
+                                    fontFamily = FontFamily.Monospace,
+                                    fontWeight = FontWeight.Bold
+                                )
+
+                                Spacer(modifier = Modifier.height(8.dp))
+
+                                // Wake word preset chips
+                                LazyRow(
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                    modifier = Modifier.fillMaxWidth()
+                                ) {
+                                    items(WAKE_WORD_PRESETS) { preset ->
+                                        val isSelected = config.wakeWordPreset.equals(preset, ignoreCase = true)
+                                        Surface(
+                                            shape = RoundedCornerShape(16.dp),
+                                            color = if (isSelected) JarvisCyan.copy(alpha = 0.25f) else JarvisObsidian,
+                                            border = BorderStroke(
+                                                width = if (isSelected) 1.5.dp else 1.dp,
+                                                color = if (isSelected) JarvisCyan else JarvisCardBorder
+                                            ),
+                                            modifier = Modifier
+                                                .clip(RoundedCornerShape(16.dp))
+                                                .clickable {
+                                                    viewModel.setWakeWordPreset(preset)
+                                                }
+                                                .testTag("chip_wakeword_${preset.replace(" ", "_")}")
+                                        ) {
+                                            Row(
+                                                verticalAlignment = Alignment.CenterVertically,
+                                                modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp)
+                                            ) {
+                                                if (isSelected) {
+                                                    Icon(
+                                                        imageVector = Icons.Default.Check,
+                                                        contentDescription = "Selected",
+                                                        tint = JarvisCyan,
+                                                        modifier = Modifier.size(14.dp)
+                                                    )
+                                                    Spacer(modifier = Modifier.width(4.dp))
+                                                }
+                                                Text(
+                                                    text = preset,
+                                                    color = if (isSelected) JarvisCyanLight else JarvisTextSecondary,
+                                                    fontSize = 11.sp,
+                                                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
+                                                    fontFamily = FontFamily.Monospace
+                                                )
+                                            }
+                                        }
+                                    }
+                                }
+
+                                Spacer(modifier = Modifier.height(12.dp))
+
+                                // Custom Wake Word Input when "Custom" is selected
+                                if (config.wakeWordPreset.equals("Custom", ignoreCase = true)) {
+                                    Column(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .padding(vertical = 4.dp)
+                                    ) {
+                                        Text(
+                                            text = "ENTER CUSTOM WAKE WORD",
+                                            color = JarvisAmber,
+                                            fontSize = 10.sp,
+                                            fontFamily = FontFamily.Monospace
+                                        )
+                                        Spacer(modifier = Modifier.height(4.dp))
+                                        Row(
+                                            verticalAlignment = Alignment.CenterVertically,
+                                            modifier = Modifier.fillMaxWidth()
+                                        ) {
+                                            OutlinedTextField(
+                                                value = customInputText,
+                                                onValueChange = { customInputText = it },
+                                                placeholder = { Text("e.g. Jarvis, Friday, Ultron...", color = JarvisTextMuted, fontSize = 12.sp) },
+                                                singleLine = true,
+                                                colors = OutlinedTextFieldDefaults.colors(
+                                                    focusedBorderColor = JarvisCyan,
+                                                    unfocusedBorderColor = JarvisCardBorder,
+                                                    focusedTextColor = JarvisTextPrimary,
+                                                    unfocusedTextColor = JarvisTextPrimary,
+                                                    focusedContainerColor = Color(0xFF070D1A),
+                                                    unfocusedContainerColor = Color(0xFF070D1A)
+                                                ),
+                                                shape = RoundedCornerShape(12.dp),
+                                                modifier = Modifier
+                                                    .weight(1f)
+                                                    .testTag("input_custom_wakeword")
+                                            )
+                                            Spacer(modifier = Modifier.width(8.dp))
+                                            Button(
+                                                onClick = {
+                                                    viewModel.setCustomWakeWord(customInputText)
+                                                    viewModel.testWakeWord(customInputText)
+                                                },
+                                                colors = ButtonDefaults.buttonColors(containerColor = JarvisCyan),
+                                                shape = RoundedCornerShape(12.dp),
+                                                modifier = Modifier.testTag("btn_save_custom_wakeword")
+                                            ) {
+                                                Icon(
+                                                    imageVector = Icons.Default.Save,
+                                                    contentDescription = "Save",
+                                                    tint = Color(0xFF001F24),
+                                                    modifier = Modifier.size(16.dp)
+                                                )
+                                                Spacer(modifier = Modifier.width(4.dp))
+                                                Text("Apply", color = Color(0xFF001F24), fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                                            }
+                                        }
+                                    }
+                                }
+
+                                Spacer(modifier = Modifier.height(10.dp))
+
+                                // Test Wake Word Button
+                                Button(
+                                    onClick = { viewModel.testWakeWord() },
+                                    colors = ButtonDefaults.buttonColors(
+                                        containerColor = JarvisCardBg
+                                    ),
+                                    border = BorderStroke(1.dp, JarvisCyan.copy(alpha = 0.5f)),
+                                    shape = RoundedCornerShape(12.dp),
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .testTag("btn_test_wake_word")
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.PlayArrow,
+                                        contentDescription = "Test",
+                                        tint = JarvisCyan,
+                                        modifier = Modifier.size(18.dp)
+                                    )
+                                    Spacer(modifier = Modifier.width(8.dp))
+                                    Text(
+                                        text = "Test Wake Word: \"${config.effectiveWakeWord}\"",
+                                        color = JarvisCyanLight,
+                                        fontSize = 11.sp,
+                                        fontFamily = FontFamily.Monospace,
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                }
+
+                                Spacer(modifier = Modifier.height(12.dp))
+
+                                // Wake Cue Options: Haptics & Chime
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    modifier = Modifier.fillMaxWidth()
+                                ) {
+                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                        Icon(
+                                            imageVector = Icons.Default.Vibration,
+                                            contentDescription = "Haptics",
+                                            tint = JarvisTextMuted,
+                                            modifier = Modifier.size(16.dp)
+                                        )
+                                        Spacer(modifier = Modifier.width(6.dp))
+                                        Text("Haptic Pulse on Wake", color = JarvisTextSecondary, fontSize = 11.sp)
+                                    }
+                                    Switch(
+                                        checked = config.wakeHapticFeedback,
+                                        onCheckedChange = { viewModel.setWakeHapticFeedback(it) },
+                                        colors = SwitchDefaults.colors(checkedTrackColor = JarvisCyan)
+                                    )
+                                }
+
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    modifier = Modifier.fillMaxWidth()
+                                ) {
+                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                        Icon(
+                                            imageVector = Icons.Default.VolumeUp,
+                                            contentDescription = "Chime",
+                                            tint = JarvisTextMuted,
+                                            modifier = Modifier.size(16.dp)
+                                        )
+                                        Spacer(modifier = Modifier.width(6.dp))
+                                        Text("Audio Beep/Chime on Wake", color = JarvisTextSecondary, fontSize = 11.sp)
+                                    }
+                                    Switch(
+                                        checked = config.wakeChimeSound,
+                                        onCheckedChange = { viewModel.setWakeChimeSound(it) },
+                                        colors = SwitchDefaults.colors(checkedTrackColor = JarvisCyan)
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            // 3. SHAPE & CONTAINER SELECTION
+            item {
+                HoloCard(borderColor = config.colorTheme.primaryColor.copy(alpha = 0.5f)) {
                     Column(modifier = Modifier.padding(16.dp)) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Icon(
@@ -236,7 +545,7 @@ fun AssistantCustomizationScreen(
                             )
                         }
 
-                        Spacer(modifier = Modifier.height(12.dp))
+                        Spacer(modifier = Modifier.height(10.dp))
 
                         AssistantShape.entries.forEach { shapeOption ->
                             val isSelected = config.shape == shapeOption
@@ -251,10 +560,11 @@ fun AssistantCustomizationScreen(
                                 ),
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .padding(vertical = 4.dp)
+                                    .padding(vertical = 3.dp)
                                     .clickable {
                                         viewModel.setAssistantShape(shapeOption)
                                     }
+                                    .testTag("shape_${shapeOption.name}")
                             ) {
                                 Row(
                                     verticalAlignment = Alignment.CenterVertically,
@@ -265,7 +575,7 @@ fun AssistantCustomizationScreen(
                                         Text(
                                             text = shapeOption.displayName,
                                             color = if (isSelected) config.colorTheme.accentColor else JarvisTextPrimary,
-                                            fontSize = 13.sp,
+                                            fontSize = 12.sp,
                                             fontWeight = FontWeight.Bold
                                         )
                                         Text(
@@ -279,7 +589,7 @@ fun AssistantCustomizationScreen(
                                             imageVector = Icons.Default.Check,
                                             contentDescription = "Selected",
                                             tint = config.colorTheme.accentColor,
-                                            modifier = Modifier.size(20.dp)
+                                            modifier = Modifier.size(18.dp)
                                         )
                                     }
                                 }
@@ -289,11 +599,9 @@ fun AssistantCustomizationScreen(
                 }
             }
 
-            // 3. COLOR PALETTE THEME
+            // 4. COLOR PALETTES & IRIDESCENCE
             item {
-                HoloCard(
-                    borderColor = config.colorTheme.primaryColor.copy(alpha = 0.5f)
-                ) {
+                HoloCard(borderColor = config.colorTheme.primaryColor.copy(alpha = 0.5f)) {
                     Column(modifier = Modifier.padding(16.dp)) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Icon(
@@ -314,9 +622,8 @@ fun AssistantCustomizationScreen(
 
                         Spacer(modifier = Modifier.height(12.dp))
 
-                        // Horizontal Color Swatch Scroll
                         Row(
-                            horizontalArrangement = Arrangement.spacedBy(10.dp),
+                            horizontalArrangement = Arrangement.spacedBy(12.dp),
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .horizontalScroll(rememberScrollState())
@@ -330,11 +637,12 @@ fun AssistantCustomizationScreen(
                                             viewModel.setAssistantColorTheme(themeOption)
                                         }
                                         .padding(4.dp)
+                                        .testTag("color_theme_${themeOption.name}")
                                 ) {
                                     Box(
                                         contentAlignment = Alignment.Center,
                                         modifier = Modifier
-                                            .size(52.dp)
+                                            .size(50.dp)
                                             .clip(CircleShape)
                                             .background(
                                                 Brush.sweepGradient(themeOption.gradientColors)
@@ -350,7 +658,7 @@ fun AssistantCustomizationScreen(
                                                 imageVector = Icons.Default.Check,
                                                 contentDescription = "Selected",
                                                 tint = Color.White,
-                                                modifier = Modifier.size(20.dp)
+                                                modifier = Modifier.size(18.dp)
                                             )
                                         }
                                     }
@@ -368,93 +676,7 @@ fun AssistantCustomizationScreen(
                 }
             }
 
-            // 4. HANDS-FREE VOICE & BEHAVIOR CONTROLS ("not from button it would work from voice")
-            item {
-                HoloCard(borderColor = config.colorTheme.primaryColor.copy(alpha = 0.5f)) {
-                    Column(modifier = Modifier.padding(16.dp)) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Icon(
-                                imageVector = Icons.Default.Hearing,
-                                contentDescription = "Voice Mode",
-                                tint = config.colorTheme.accentColor,
-                                modifier = Modifier.size(18.dp)
-                            )
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Text(
-                                text = "HANDS-FREE VOICE ENGINE",
-                                color = JarvisTextPrimary,
-                                fontSize = 12.sp,
-                                fontFamily = FontFamily.Monospace,
-                                fontWeight = FontWeight.Bold
-                            )
-                        }
-
-                        Spacer(modifier = Modifier.height(14.dp))
-
-                        // Auto-Listen on Launch
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            modifier = Modifier.fillMaxWidth()
-                        ) {
-                            Column(modifier = Modifier.weight(1f)) {
-                                Text(
-                                    text = "Instant Voice on Launch",
-                                    color = JarvisTextPrimary,
-                                    fontSize = 13.sp,
-                                    fontWeight = FontWeight.SemiBold
-                                )
-                                Text(
-                                    text = "Automatically starts listening immediately without pressing buttons",
-                                    color = JarvisTextMuted,
-                                    fontSize = 10.sp
-                                )
-                            }
-                            Switch(
-                                checked = config.autoListenOnOpen,
-                                onCheckedChange = { viewModel.setAutoListenOnOpen(it) },
-                                colors = SwitchDefaults.colors(
-                                    checkedThumbColor = Color.White,
-                                    checkedTrackColor = config.colorTheme.primaryColor
-                                )
-                            )
-                        }
-
-                        Spacer(modifier = Modifier.height(12.dp))
-
-                        // Continuous Conversation Voice Loop
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            modifier = Modifier.fillMaxWidth()
-                        ) {
-                            Column(modifier = Modifier.weight(1f)) {
-                                Text(
-                                    text = "Continuous Voice Dialogue Loop",
-                                    color = JarvisTextPrimary,
-                                    fontSize = 13.sp,
-                                    fontWeight = FontWeight.SemiBold
-                                )
-                                Text(
-                                    text = "Listens again automatically after answering for a natural voice flow",
-                                    color = JarvisTextMuted,
-                                    fontSize = 10.sp
-                                )
-                            }
-                            Switch(
-                                checked = config.continuousVoiceConversation,
-                                onCheckedChange = { viewModel.setContinuousVoice(it) },
-                                colors = SwitchDefaults.colors(
-                                    checkedThumbColor = Color.White,
-                                    checkedTrackColor = config.colorTheme.primaryColor
-                                )
-                            )
-                        }
-                    }
-                }
-            }
-
-            // 5. ASSISTANT PERSONALITY (Executive / Jarvis / Siri Pro)
+            // 5. PERSONALITY INTELLIGENCE PROFILES
             item {
                 HoloCard(borderColor = config.colorTheme.primaryColor.copy(alpha = 0.5f)) {
                     Column(modifier = Modifier.padding(16.dp)) {
@@ -490,10 +712,11 @@ fun AssistantCustomizationScreen(
                                 ),
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .padding(vertical = 4.dp)
+                                    .padding(vertical = 3.dp)
                                     .clickable {
                                         viewModel.setAssistantPersonality(persona)
                                     }
+                                    .testTag("personality_${persona.name}")
                             ) {
                                 Row(
                                     verticalAlignment = Alignment.CenterVertically,
@@ -528,7 +751,7 @@ fun AssistantCustomizationScreen(
                 }
             }
 
-            // 6. GLOW INTENSITY & SCALE SLIDERS
+            // 6. GLOW, SCALE, AND SPEECH SLIDERS
             item {
                 HoloCard(borderColor = config.colorTheme.primaryColor.copy(alpha = 0.5f)) {
                     Column(modifier = Modifier.padding(16.dp)) {
@@ -541,7 +764,7 @@ fun AssistantCustomizationScreen(
                             )
                             Spacer(modifier = Modifier.width(8.dp))
                             Text(
-                                text = "VISUAL INTENSITY & SIZING",
+                                text = "FINE TUNING & SIZING",
                                 color = JarvisTextPrimary,
                                 fontSize = 12.sp,
                                 fontFamily = FontFamily.Monospace,
@@ -549,11 +772,11 @@ fun AssistantCustomizationScreen(
                             )
                         }
 
-                        Spacer(modifier = Modifier.height(12.dp))
+                        Spacer(modifier = Modifier.height(10.dp))
 
                         // Glow intensity
                         Text(
-                            text = "Glow Aura Intensity: ${(config.glowIntensity * 100).toInt()}%",
+                            text = "Glow Intensity: ${(config.glowIntensity * 100).toInt()}%",
                             color = JarvisTextSecondary,
                             fontSize = 11.sp
                         )
@@ -568,8 +791,6 @@ fun AssistantCustomizationScreen(
                             )
                         )
 
-                        Spacer(modifier = Modifier.height(8.dp))
-
                         // Orb scale
                         Text(
                             text = "Visual Scale Size: ${(config.orbScale * 100).toInt()}%",
@@ -580,6 +801,23 @@ fun AssistantCustomizationScreen(
                             value = config.orbScale,
                             onValueChange = { viewModel.setOrbScale(it) },
                             valueRange = 0.8f..1.3f,
+                            colors = SliderDefaults.colors(
+                                thumbColor = config.colorTheme.accentColor,
+                                activeTrackColor = config.colorTheme.primaryColor,
+                                inactiveTrackColor = JarvisCardBorder
+                            )
+                        )
+
+                        // Speech Speed
+                        Text(
+                            text = "Voice Speed: ${(config.speechSpeed * 100).toInt()}%",
+                            color = JarvisTextSecondary,
+                            fontSize = 11.sp
+                        )
+                        Slider(
+                            value = config.speechSpeed,
+                            onValueChange = { viewModel.setSpeechSpeed(it) },
+                            valueRange = 0.7f..1.4f,
                             colors = SliderDefaults.colors(
                                 thumbColor = config.colorTheme.accentColor,
                                 activeTrackColor = config.colorTheme.primaryColor,
