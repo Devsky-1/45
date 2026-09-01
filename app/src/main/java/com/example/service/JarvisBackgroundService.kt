@@ -38,6 +38,9 @@ class JarvisBackgroundService : Service() {
             ACTION_DAILY_BRIEFING -> {
                 engine.quickExecuteBriefing()
             }
+            ACTION_ACTIVATE_FLOATING_SHAPE -> {
+                JarvisFloatingOverlayService.activateFromWakeWord(this, null)
+            }
         }
 
         val notification = buildForegroundNotification()
@@ -87,11 +90,11 @@ class JarvisBackgroundService : Service() {
             PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
         )
 
-        // Action 1: Speak (opens instant overlay)
-        val speakIntent = Intent(this, JarvisAssistActivity::class.java).apply {
-            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
+        // Action 1: Speak (opens Siri floating shape overlay)
+        val speakIntent = Intent(this, JarvisBackgroundService::class.java).apply {
+            action = ACTION_ACTIVATE_FLOATING_SHAPE
         }
-        val speakPendingIntent = PendingIntent.getActivity(
+        val speakPendingIntent = PendingIntent.getService(
             this,
             1,
             speakIntent,
@@ -141,6 +144,7 @@ class JarvisBackgroundService : Service() {
         const val ACTION_STOP_SERVICE = "com.example.action.STOP_SERVICE"
         const val ACTION_TOGGLE_TORCH = "com.example.action.TOGGLE_TORCH"
         const val ACTION_DAILY_BRIEFING = "com.example.action.DAILY_BRIEFING"
+        const val ACTION_ACTIVATE_FLOATING_SHAPE = "com.example.action.ACTIVATE_FLOATING_SHAPE"
 
         fun start(context: Context) {
             val intent = Intent(context, JarvisBackgroundService::class.java).apply {

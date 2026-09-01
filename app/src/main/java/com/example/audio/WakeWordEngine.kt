@@ -23,6 +23,8 @@ class WakeWordEngine(private val context: Context) {
 
     private var currentWakeWord: String = "Hey Jarvis"
     private var isEnabled: Boolean = true
+    private var currentLanguage: com.example.data.repository.AssistantLanguage =
+        com.example.data.repository.AssistantLanguage.ENGLISH
     private var onWakeWordTriggered: ((command: String?) -> Unit)? = null
 
     private val _isAmbientListening = MutableStateFlow(false)
@@ -40,9 +42,14 @@ class WakeWordEngine(private val context: Context) {
         } catch (_: Exception) {}
     }
 
-    fun configure(wakeWord: String, enabled: Boolean) {
+    fun configure(
+        wakeWord: String,
+        enabled: Boolean,
+        language: com.example.data.repository.AssistantLanguage = currentLanguage
+    ) {
         currentWakeWord = wakeWord.trim()
         isEnabled = enabled
+        currentLanguage = language
         if (!enabled) {
             stopAmbientListening()
         }
@@ -116,9 +123,19 @@ class WakeWordEngine(private val context: Context) {
                 })
             }
 
+            val ambientLocale = when (currentLanguage) {
+                com.example.data.repository.AssistantLanguage.HINDI -> "hi-IN"
+                com.example.data.repository.AssistantLanguage.HINGLISH -> "en-IN"
+                com.example.data.repository.AssistantLanguage.ENGLISH -> Locale.getDefault().toLanguageTag()
+            }
+
             val intent = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
                 putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
-                putExtra(RecognizerIntent.EXTRA_LANGUAGE, Locale.getDefault().toLanguageTag())
+                putExtra(RecognizerIntent.EXTRA_LANGUAGE, ambientLocale)
+                putExtra(RecognizerIntent.EXTRA_LANGUAGE_PREFERENCE, ambientLocale)
+                if (currentLanguage == com.example.data.repository.AssistantLanguage.HINGLISH || currentLanguage == com.example.data.repository.AssistantLanguage.HINDI) {
+                    putExtra("android.speech.extra.EXTRA_ADDITIONAL_LANGUAGES", arrayOf("hi-IN", "en-IN", "en-US"))
+                }
                 putExtra(RecognizerIntent.EXTRA_PARTIAL_RESULTS, true)
                 putExtra(RecognizerIntent.EXTRA_MAX_RESULTS, 1)
                 putExtra(RecognizerIntent.EXTRA_SPEECH_INPUT_MINIMUM_LENGTH_MILLIS, 1500L)
@@ -138,8 +155,9 @@ class WakeWordEngine(private val context: Context) {
     }
 
     private fun checkAndProcessWakeWord(rawText: String, isPartial: Boolean = false): Boolean {
-        val normalized = rawText.lowercase().replace(Regex("[^a-zA-Z0-9\\s]"), " ").trim()
-        val wakeTarget = currentWakeWord.lowercase().replace(Regex("[^a-zA-Z0-9\\s]"), " ").trim()
+        // Retain unicode letters so Hindi Devanagari is preserved
+        val normalized = rawText.lowercase().replace(Regex("[^\\p{L}\\p{N}\\s]"), " ").trim()
+        val wakeTarget = currentWakeWord.lowercase().replace(Regex("[^\\p{L}\\p{N}\\s]"), " ").trim()
 
         // Match variations:
         // E.g. target "hey jarvis" -> also accept "jarvis" if the target includes "jarvis"
@@ -150,8 +168,14 @@ class WakeWordEngine(private val context: Context) {
             normalized.contains(wakeTarget) -> normalized.indexOf(wakeTarget) to wakeTarget.length
             altTarget != null && normalized.contains(altTarget) -> normalized.indexOf(altTarget) to altTarget.length
             okTarget != null && normalized.contains(okTarget) -> normalized.indexOf(okTarget) to okTarget.length
-            // Additional smart phonetic matching for "jarvis" / "siri"
-            wakeTarget.contains("jarvis") && normalized.contains("jarvis") -> normalized.indexOf("jarvis") to 6
+            // Additional smart multilingual phonetic matching for "jarvis" / "siri" / Hindi wake phrases
+            normalized.contains("jarvis") -> normalized.indexOf("jarvis") to 6
+            normalized.contains("जार्विस") -> normalized.indexOf("जार्विस") to 7
+            normalized.contains("सूनो जार्विस") || normalized.contains("सुनो जार्विस") -> normalized.indexOf("जार्विस") to 7
+            normalized.contains("suno jarvis") -> normalized.indexOf("suno jarvis") to 11
+            normalized.contains("namaste jarvis") -> normalized.indexOf("namaste jarvis") to 14
+            normalized.contains("नमस्ते जार्विस") -> normalized.indexOf("नमस्ते जार्विस") to 13
+            normalized.contains("जार्विस भाई") || normalized.contains("jarvis bhai") -> normalized.indexOf("jarvis") to 6
             wakeTarget.contains("siri") && normalized.contains("siri") -> normalized.indexOf("siri") to 4
             wakeTarget.contains("computer") && normalized.contains("computer") -> normalized.indexOf("computer") to 8
             wakeTarget.contains("friday") && normalized.contains("friday") -> normalized.indexOf("friday") to 6

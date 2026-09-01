@@ -22,6 +22,8 @@ sealed interface SpeechState {
 class SpeechRecognizerHelper(private val context: Context) {
 
     private var speechRecognizer: SpeechRecognizer? = null
+    private var currentLanguage: com.example.data.repository.AssistantLanguage =
+        com.example.data.repository.AssistantLanguage.ENGLISH
 
     private val _speechState = MutableStateFlow<SpeechState>(SpeechState.Idle)
     val speechState: StateFlow<SpeechState> = _speechState.asStateFlow()
@@ -29,7 +31,12 @@ class SpeechRecognizerHelper(private val context: Context) {
     private val _rmsAudioLevel = MutableStateFlow(0f)
     val rmsAudioLevel: StateFlow<Float> = _rmsAudioLevel.asStateFlow()
 
+    fun setAssistantLanguage(language: com.example.data.repository.AssistantLanguage) {
+        currentLanguage = language
+    }
+
     fun startListening(
+        language: com.example.data.repository.AssistantLanguage = currentLanguage,
         onResult: (String) -> Unit,
         onError: (String) -> Unit
     ) {
@@ -38,6 +45,7 @@ class SpeechRecognizerHelper(private val context: Context) {
             return
         }
 
+        currentLanguage = language
         stopListening()
 
         speechRecognizer = SpeechRecognizer.createSpeechRecognizer(context).apply {
@@ -104,9 +112,21 @@ class SpeechRecognizerHelper(private val context: Context) {
             })
         }
 
+        val primaryLocale = when (language) {
+            com.example.data.repository.AssistantLanguage.HINDI -> "hi-IN"
+            com.example.data.repository.AssistantLanguage.HINGLISH -> "en-IN"
+            com.example.data.repository.AssistantLanguage.ENGLISH -> Locale.getDefault().toLanguageTag()
+        }
+
         val intent = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
             putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
-            putExtra(RecognizerIntent.EXTRA_LANGUAGE, Locale.getDefault().toLanguageTag())
+            putExtra(RecognizerIntent.EXTRA_LANGUAGE, primaryLocale)
+            putExtra(RecognizerIntent.EXTRA_LANGUAGE_PREFERENCE, primaryLocale)
+            if (language == com.example.data.repository.AssistantLanguage.HINGLISH) {
+                putExtra("android.speech.extra.EXTRA_ADDITIONAL_LANGUAGES", arrayOf("hi-IN", "en-IN", "en-US"))
+            } else if (language == com.example.data.repository.AssistantLanguage.HINDI) {
+                putExtra("android.speech.extra.EXTRA_ADDITIONAL_LANGUAGES", arrayOf("en-IN", "hi-IN"))
+            }
             putExtra(RecognizerIntent.EXTRA_PARTIAL_RESULTS, true)
             putExtra(RecognizerIntent.EXTRA_MAX_RESULTS, 1)
         }

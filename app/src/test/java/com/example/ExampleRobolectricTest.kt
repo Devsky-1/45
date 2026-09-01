@@ -4,6 +4,7 @@ import android.content.Context
 import androidx.test.core.app.ApplicationProvider
 import com.example.data.repository.AssistantAppearanceConfig
 import com.example.data.repository.AssistantColorTheme
+import com.example.data.repository.AssistantLanguage
 import com.example.data.repository.AssistantPersonality
 import com.example.data.repository.AssistantPreferencesManager
 import com.example.data.repository.AssistantShape
@@ -38,17 +39,25 @@ class ExampleRobolectricTest {
         assertEquals(true, initialConfig.wakeWordEnabled)
         assertEquals(AssistantShape.SIRI_ORB, initialConfig.shape)
         assertEquals(AssistantColorTheme.SIRI_IRIDESCENT, initialConfig.colorTheme)
+        assertEquals(AssistantLanguage.ENGLISH, initialConfig.voiceLanguage)
 
-        // Update shape and theme
-        prefs.saveShape(AssistantShape.SIRI_CURVED_PILL)
-        prefs.saveColorTheme(AssistantColorTheme.CYAN_HOLOGRAM)
-        prefs.saveWakeWordPreset("Hey Siri")
+        // Update shape, theme and language
+        prefs.setShape(AssistantShape.CURVED_PILL)
+        prefs.setColorTheme(AssistantColorTheme.CYBER_CYAN)
+        prefs.setWakeWordPreset("Hey Siri")
+        prefs.setVoiceLanguage(AssistantLanguage.HINDI)
 
         val updated = prefs.configFlow.value
-        assertEquals(AssistantShape.SIRI_CURVED_PILL, updated.shape)
-        assertEquals(AssistantColorTheme.CYAN_HOLOGRAM, updated.colorTheme)
+        assertEquals(AssistantShape.CURVED_PILL, updated.shape)
+        assertEquals(AssistantColorTheme.CYBER_CYAN, updated.colorTheme)
         assertEquals("Hey Siri", updated.wakeWordPreset)
         assertEquals("Hey Siri", updated.effectiveWakeWord)
+        assertEquals(AssistantLanguage.HINDI, updated.voiceLanguage)
+
+        // Update to Hinglish
+        prefs.setVoiceLanguage(AssistantLanguage.HINGLISH)
+        val hinglishConfig = prefs.configFlow.value
+        assertEquals(AssistantLanguage.HINGLISH, hinglishConfig.voiceLanguage)
     }
 
     @Test
@@ -56,8 +65,8 @@ class ExampleRobolectricTest {
         val context = ApplicationProvider.getApplicationContext<Context>()
         val prefs = AssistantPreferencesManager(context)
 
-        prefs.saveWakeWordPreset("Custom")
-        prefs.saveCustomWakeWord("Computer Alpha")
+        prefs.setWakeWordPreset("Custom")
+        prefs.setCustomWakeWord("Computer Alpha")
 
         val config = prefs.configFlow.value
         assertEquals("Custom", config.wakeWordPreset)
@@ -66,10 +75,13 @@ class ExampleRobolectricTest {
     }
 
     @Test
-    fun `test all shapes and themes are available`() {
+    fun `test all shapes and themes and languages are available`() {
         assertTrue(AssistantShape.entries.isNotEmpty())
         assertTrue(AssistantColorTheme.entries.isNotEmpty())
         assertTrue(AssistantPersonality.entries.isNotEmpty())
+        assertTrue(AssistantLanguage.entries.contains(AssistantLanguage.ENGLISH))
+        assertTrue(AssistantLanguage.entries.contains(AssistantLanguage.HINDI))
+        assertTrue(AssistantLanguage.entries.contains(AssistantLanguage.HINGLISH))
         assertTrue(WAKE_WORD_PRESETS.contains("Hey Jarvis"))
         assertTrue(WAKE_WORD_PRESETS.contains("Hey Siri"))
     }

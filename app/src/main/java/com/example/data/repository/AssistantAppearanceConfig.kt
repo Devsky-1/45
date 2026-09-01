@@ -122,9 +122,48 @@ enum class AssistantPersonality(val displayName: String, val promptPrefix: Strin
     )
 }
 
+enum class AssistantLanguage(
+    val id: String,
+    val displayName: String,
+    val nativeLabel: String,
+    val subtitle: String,
+    val localeTag: String,
+    val samplePhrase: String
+) {
+    ENGLISH(
+        id = "en",
+        displayName = "English",
+        nativeLabel = "English (Global)",
+        subtitle = "Refined aristocratic British & Global English",
+        localeTag = "en-US",
+        samplePhrase = "Greetings, sir. All core diagnostics report optimal operational efficiency. What is our objective today?"
+    ),
+    HINDI(
+        id = "hi",
+        displayName = "हिन्दी",
+        nativeLabel = "हिन्दी (Hindi)",
+        subtitle = "शुद्ध, विनम्र और प्राकृतिक हिन्दी संवाद",
+        localeTag = "hi-IN",
+        samplePhrase = "नमस्ते सर! जार्विस प्रणाली सक्रिय है। मैं आपकी क्या सहायता कर सकता हूँ?"
+    ),
+    HINGLISH(
+        id = "hinglish",
+        displayName = "Hinglish",
+        nativeLabel = "Hinglish (हिंग्लिश)",
+        subtitle = "Natural conversational Indian Hindi-English fusion",
+        localeTag = "en-IN",
+        samplePhrase = "Haan ji Sir! J.A.R.V.I.S. bilkul ready hai. Sabhi systems mast chal rahe hain, boliye kya help karoon?"
+    )
+}
+
 val WAKE_WORD_PRESETS = listOf(
     "Hey Jarvis",
     "Jarvis",
+    "सुनो जार्विस",
+    "Suno Jarvis",
+    "नमस्ते जार्विस",
+    "Namaste Jarvis",
+    "Jarvis Bhai",
     "Hey Siri",
     "Computer",
     "Friday",
@@ -137,6 +176,7 @@ data class AssistantAppearanceConfig(
     val shape: AssistantShape = AssistantShape.SIRI_ORB,
     val colorTheme: AssistantColorTheme = AssistantColorTheme.SIRI_IRIDESCENT,
     val personality: AssistantPersonality = AssistantPersonality.PRO_EXECUTIVE,
+    val voiceLanguage: AssistantLanguage = AssistantLanguage.ENGLISH,
     val autoListenOnOpen: Boolean = true,
     val continuousVoiceConversation: Boolean = true,
     val wakeWordEnabled: Boolean = true,
@@ -174,6 +214,8 @@ class AssistantPreferencesManager(context: Context) {
             ?: AssistantColorTheme.SIRI_IRIDESCENT.name
         val personalityName = prefs.getString("personality", AssistantPersonality.PRO_EXECUTIVE.name)
             ?: AssistantPersonality.PRO_EXECUTIVE.name
+        val languageName = prefs.getString("voice_language", AssistantLanguage.ENGLISH.name)
+            ?: AssistantLanguage.ENGLISH.name
         val autoListen = prefs.getBoolean("auto_listen", true)
         val continuousVoice = prefs.getBoolean("continuous_voice", true)
         val wakeEnabled = prefs.getBoolean("wake_word_enabled", true)
@@ -190,11 +232,13 @@ class AssistantPreferencesManager(context: Context) {
         val shape = runCatching { AssistantShape.valueOf(shapeName) }.getOrDefault(AssistantShape.SIRI_ORB)
         val color = runCatching { AssistantColorTheme.valueOf(colorName) }.getOrDefault(AssistantColorTheme.SIRI_IRIDESCENT)
         val personality = runCatching { AssistantPersonality.valueOf(personalityName) }.getOrDefault(AssistantPersonality.PRO_EXECUTIVE)
+        val language = runCatching { AssistantLanguage.valueOf(languageName) }.getOrDefault(AssistantLanguage.ENGLISH)
 
         return AssistantAppearanceConfig(
             shape = shape,
             colorTheme = color,
             personality = personality,
+            voiceLanguage = language,
             autoListenOnOpen = autoListen,
             continuousVoiceConversation = continuousVoice,
             wakeWordEnabled = wakeEnabled,
@@ -217,6 +261,7 @@ class AssistantPreferencesManager(context: Context) {
             .putString("shape", newConfig.shape.name)
             .putString("color_theme", newConfig.colorTheme.name)
             .putString("personality", newConfig.personality.name)
+            .putString("voice_language", newConfig.voiceLanguage.name)
             .putBoolean("auto_listen", newConfig.autoListenOnOpen)
             .putBoolean("continuous_voice", newConfig.continuousVoiceConversation)
             .putBoolean("wake_word_enabled", newConfig.wakeWordEnabled)
@@ -247,6 +292,10 @@ class AssistantPreferencesManager(context: Context) {
 
     fun setPersonality(personality: AssistantPersonality) {
         updateConfig { it.copy(personality = personality) }
+    }
+
+    fun setVoiceLanguage(language: AssistantLanguage) {
+        updateConfig { it.copy(voiceLanguage = language) }
     }
 
     fun setContinuousVoice(enabled: Boolean) {

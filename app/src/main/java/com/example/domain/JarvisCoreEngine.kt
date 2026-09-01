@@ -84,14 +84,17 @@ class JarvisCoreEngine private constructor(val context: Context) {
     val isMuted: StateFlow<Boolean> = ttsHelper.isMuted
 
     init {
-        // Apply initial TTS settings
+        // Apply initial TTS & STT settings
+        ttsHelper.setAssistantLanguage(appearanceConfig.value.voiceLanguage)
         ttsHelper.setPitch(appearanceConfig.value.speechPitch)
         ttsHelper.setSpeechRate(appearanceConfig.value.speechSpeed)
+        speechHelper.setAssistantLanguage(appearanceConfig.value.voiceLanguage)
 
         // Configure wake word
         wakeWordEngine.configure(
             wakeWord = appearanceConfig.value.effectiveWakeWord,
-            enabled = appearanceConfig.value.wakeWordEnabled
+            enabled = appearanceConfig.value.wakeWordEnabled,
+            language = appearanceConfig.value.voiceLanguage
         )
 
         // Start ambient wake word listener
@@ -142,11 +145,14 @@ class JarvisCoreEngine private constructor(val context: Context) {
         // Dynamic config observer
         engineScope.launch {
             appearanceConfig.collect { config ->
+                ttsHelper.setAssistantLanguage(config.voiceLanguage)
                 ttsHelper.setPitch(config.speechPitch)
                 ttsHelper.setSpeechRate(config.speechSpeed)
+                speechHelper.setAssistantLanguage(config.voiceLanguage)
                 wakeWordEngine.configure(
                     wakeWord = config.effectiveWakeWord,
-                    enabled = config.wakeWordEnabled
+                    enabled = config.wakeWordEnabled,
+                    language = config.voiceLanguage
                 )
             }
         }
@@ -159,6 +165,7 @@ class JarvisCoreEngine private constructor(val context: Context) {
                     if (_jarvisState.value == JarvisState.STANDBY) {
                         deviceController.vibrateHaptic(30)
                         speechHelper.startListening(
+                            language = appearanceConfig.value.voiceLanguage,
                             onResult = { spokenText ->
                                 processUserQuery(spokenText)
                             },
@@ -182,15 +189,9 @@ class JarvisCoreEngine private constructor(val context: Context) {
                     deviceController.vibrateHaptic(60)
                 }
 
-                // Launch system-wide overlay activity immediately over home screen or any app
+                // Show only the selected floating shape from Studio (like Siri) - no full-screen window!
                 try {
-                    val overlayIntent = Intent(context, com.example.ui.screens.JarvisAssistActivity::class.java).apply {
-                        flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP
-                        if (!command.isNullOrBlank()) {
-                            putExtra(com.example.ui.screens.JarvisAssistActivity.EXTRA_COMMAND, command)
-                        }
-                    }
-                    context.startActivity(overlayIntent)
+                    com.example.service.JarvisFloatingOverlayService.activateFromWakeWord(context, command)
                 } catch (_: Exception) {}
 
                 if (!command.isNullOrBlank()) {
@@ -200,10 +201,16 @@ class JarvisCoreEngine private constructor(val context: Context) {
                 } else {
                     // Wake word triggered alone ("Hey Jarvis") -> transition into active listening
                     _jarvisState.value = JarvisState.LISTENING
-                    val wakeGreeting = when (appearanceConfig.value.personality) {
-                        AssistantPersonality.JARVIS_AI -> "Online, sir. How may I assist?"
-                        AssistantPersonality.SIRI_PRO -> "I'm listening."
-                        AssistantPersonality.PRO_EXECUTIVE -> "Ready. Go ahead."
+                    val wakeGreeting = when (appearanceConfig.value.voiceLanguage) {
+                        com.example.data.repository.AssistantLanguage.HINDI ->
+                            "नमस्ते सर, मैं सुन रहा हूँ। आज्ञा दीजिए।"
+                        com.example.data.repository.AssistantLanguage.HINGLISH ->
+                            "Haan ji Sir, main sun raha hoon. Boliye!"
+                        com.example.data.repository.AssistantLanguage.ENGLISH -> when (appearanceConfig.value.personality) {
+                            AssistantPersonality.JARVIS_AI -> "Online, sir. How may I assist?"
+                            AssistantPersonality.SIRI_PRO -> "I'm listening."
+                            AssistantPersonality.PRO_EXECUTIVE -> "Ready. Go ahead."
+                        }
                     }
                     ttsHelper.speak(wakeGreeting)
                 }
@@ -215,7 +222,14 @@ class JarvisCoreEngine private constructor(val context: Context) {
         val word = customWord ?: appearanceConfig.value.effectiveWakeWord
         deviceController.vibrateHaptic(70)
         wakeWordEngine.playActivationChime()
-        val reply = "Wake word '$word' verified and calibrated successfully, sir. Ambient acoustic sensors are operational."
+        val reply = when (appearanceConfig.value.voiceLanguage) {
+            com.example.data.repository.AssistantLanguage.HINDI ->
+                "वेक वर्ड '$word' सफलतापूर्वक कैलिब्रेट हो गया है, सर। माइक्रोफोन सेंसर्स सक्रिय हैं।"
+            com.example.data.repository.AssistantLanguage.HINGLISH ->
+                "Wake word '$word' perfectly calibrate ho gaya hai Sir! System ekdum alert aur active hai."
+            com.example.data.repository.AssistantLanguage.ENGLISH ->
+                "Wake word '$word' verified and calibrated successfully, sir. Ambient acoustic sensors are operational."
+        }
         engineScope.launch(Dispatchers.Main) {
             ttsHelper.speak(reply)
         }
@@ -292,13 +306,18 @@ class JarvisCoreEngine private constructor(val context: Context) {
         rawQuery: String,
         onResponseReady: ((String) -> Unit)? = null
     ) {
+        val lang = appearanceConfig.value.voiceLanguage
+
         when (command) {
             is ParsedJarvisCommand.Flashlight -> {
                 val success = deviceController.setFlashlight(command.enable)
-                val reply = if (command.enable) {
-                    "Illumination protocol engaged, sir. Tactical LED emitter activated."
-                } else {
-                    "Flashlight powered down, sir. Systems returning to ambient standby."
+                val reply = when (lang) {
+                    com.example.data.repository.AssistantLanguage.HINDI ->
+                        if (command.enable) "टॉर्च चालू कर दी गई है, सर। रोशनी सक्रिय है।" else "टॉर्च बंद कर दी गई है, सर।"
+                    com.example.data.repository.AssistantLanguage.HINGLISH ->
+                        if (command.enable) "Tactical flashlight on kar di gayi hai Sir! Full illumination active." else "Flashlight band kar di gayi hai Sir."
+                    com.example.data.repository.AssistantLanguage.ENGLISH ->
+                        if (command.enable) "Illumination protocol engaged, sir. Tactical LED emitter activated." else "Flashlight powered down, sir. Systems returning to ambient standby."
                 }
                 respondAsJarvis(reply, actionType = "FLASHLIGHT", actionPayload = if (command.enable) "ON" else "OFF", onResponseReady = onResponseReady)
             }
@@ -312,19 +331,40 @@ class JarvisCoreEngine private constructor(val context: Context) {
                     minutes > 0 -> "$minutes minutes"
                     else -> "$secs seconds"
                 }
-                val reply = "Timer initialized for $durationText under '${command.label}', sir. I will alert you upon countdown completion."
+                val reply = when (lang) {
+                    com.example.data.repository.AssistantLanguage.HINDI ->
+                        "$durationText का टाइमर '${command.label}' के लिए शुरू कर दिया गया है, सर।"
+                    com.example.data.repository.AssistantLanguage.HINGLISH ->
+                        "$durationText ka countdown timer set ho gaya hai Sir! Time complete hone par alert kar doonga."
+                    com.example.data.repository.AssistantLanguage.ENGLISH ->
+                        "Timer initialized for $durationText under '${command.label}', sir. I will alert you upon countdown completion."
+                }
                 respondAsJarvis(reply, actionType = "TIMER", actionPayload = "${command.seconds}", onResponseReady = onResponseReady)
             }
 
             is ParsedJarvisCommand.Reminder -> {
                 repository.addReminder(command.title, command.dueTime, command.priority)
-                val reply = "Reminder logged to memory matrix: '${command.title}' scheduled for ${command.dueTime}, sir."
+                val reply = when (lang) {
+                    com.example.data.repository.AssistantLanguage.HINDI ->
+                        "रिमाइंडर मेमोरी में दर्ज कर लिया गया है: '${command.title}', ${command.dueTime} के लिए, सर।"
+                    com.example.data.repository.AssistantLanguage.HINGLISH ->
+                        "Reminder log ho gaya hai: '${command.title}', schedule time ${command.dueTime} hai Sir."
+                    com.example.data.repository.AssistantLanguage.ENGLISH ->
+                        "Reminder logged to memory matrix: '${command.title}' scheduled for ${command.dueTime}, sir."
+                }
                 respondAsJarvis(reply, actionType = "REMINDER", actionPayload = command.title, onResponseReady = onResponseReady)
             }
 
             is ParsedJarvisCommand.Note -> {
                 repository.addNote(command.title, command.content)
-                val reply = "Note secured in encrypted archives: '${command.title}', sir."
+                val reply = when (lang) {
+                    com.example.data.repository.AssistantLanguage.HINDI ->
+                        "नोट सुरक्षित कर लिया गया है: '${command.title}', सर।"
+                    com.example.data.repository.AssistantLanguage.HINGLISH ->
+                        "Note encrypted archives mein save ho gaya hai: '${command.title}', Sir."
+                    com.example.data.repository.AssistantLanguage.ENGLISH ->
+                        "Note secured in encrypted archives: '${command.title}', sir."
+                }
                 respondAsJarvis(reply, actionType = "NOTE", actionPayload = command.content, onResponseReady = onResponseReady)
             }
 
@@ -333,13 +373,27 @@ class JarvisCoreEngine private constructor(val context: Context) {
                 val dateFormat = SimpleDateFormat("EEEE, MMMM d", Locale.getDefault()).format(Date())
                 val battery = telemetry.value.batteryLevel
                 val pendingReminders = reminders.value.count { !it.isCompleted }
-                val reply = "Good day, sir. It is $timeFormat on $dateFormat. Power levels are at $battery%. Weather is clear at 24°C. You have $pendingReminders scheduled reminders in your agenda. All defense grids are nominal."
+                val reply = when (lang) {
+                    com.example.data.repository.AssistantLanguage.HINDI ->
+                        "शुभ दिवस सर। समय $timeFormat हुआ है, $dateFormat। बैटरी $battery% है, मौसम 24°C के साथ अनुकूल है, और आपके $pendingReminders रिमाइंडर बाकी हैं।"
+                    com.example.data.repository.AssistantLanguage.HINGLISH ->
+                        "Good day Sir! Abhi time $timeFormat hai, $dateFormat. Battery level $battery% pe hai aur weather 24°C clear hai. Aapke $pendingReminders reminders scheduled hain."
+                    com.example.data.repository.AssistantLanguage.ENGLISH ->
+                        "Good day, sir. It is $timeFormat on $dateFormat. Power levels are at $battery%. Weather is clear at 24°C. You have $pendingReminders scheduled reminders in your agenda. All defense grids are nominal."
+                }
                 respondAsJarvis(reply, actionType = "BRIEFING", onResponseReady = onResponseReady)
             }
 
             is ParsedJarvisCommand.Diagnostic -> {
                 val t = telemetry.value
-                val reply = "System Diagnostic Report, sir: Core battery at ${t.batteryLevel}% (${if (t.isCharging) "Charging" else "Discharging"}), RAM allocation at ${t.ramUsagePercent}% (${t.ramUsedMb}MB of ${t.ramTotalMb}MB), Flash storage with ${String.format(Locale.getDefault(), "%.1f", t.storageFreeGb)}GB available, and Network link is ${t.networkStatus}."
+                val reply = when (lang) {
+                    com.example.data.repository.AssistantLanguage.HINDI ->
+                        "सिस्टम रिपोर्ट, सर: बैटरी ${t.batteryLevel}% (${if (t.isCharging) "चार्जिंग" else "डिस्चार्जिंग"}), रैम उपयोग ${t.ramUsagePercent}%, फ्री स्टोरेज ${String.format(Locale.getDefault(), "%.1f", t.storageFreeGb)}GB उपलब्ध, और नेटवर्क स्थिति ${t.networkStatus} है।"
+                    com.example.data.repository.AssistantLanguage.HINGLISH ->
+                        "System Diagnostic Report Sir: Battery ${t.batteryLevel}% (${if (t.isCharging) "Charging" else "On Battery"}), RAM usage ${t.ramUsagePercent}%, Free Space ${String.format(Locale.getDefault(), "%.1f", t.storageFreeGb)}GB, aur network connection ${t.networkStatus} hai."
+                    com.example.data.repository.AssistantLanguage.ENGLISH ->
+                        "System Diagnostic Report, sir: Core battery at ${t.batteryLevel}% (${if (t.isCharging) "Charging" else "Discharging"}), RAM allocation at ${t.ramUsagePercent}% (${t.ramUsedMb}MB of ${t.ramTotalMb}MB), Flash storage with ${String.format(Locale.getDefault(), "%.1f", t.storageFreeGb)}GB available, and Network link is ${t.networkStatus}."
+                }
                 respondAsJarvis(reply, actionType = "DIAGNOSTIC", onResponseReady = onResponseReady)
             }
 
@@ -348,42 +402,70 @@ class JarvisCoreEngine private constructor(val context: Context) {
                 val reply = when (command.protocolName) {
                     "House Party Protocol" -> {
                         _jarvisState.value = JarvisState.ALERT
-                        "House Party Protocol authorized, sir. All automated secondary combat units dispatched to your coordinates."
+                        if (lang == com.example.data.repository.AssistantLanguage.HINDI) "हाउस पार्टी प्रोटोकॉल अधिकृत, सर। सभी यूनिट्स सक्रिय कर दी गई हैं।"
+                        else if (lang == com.example.data.repository.AssistantLanguage.HINGLISH) "House Party Protocol authorized Sir! Sabhi units aapke location pe deploy ho rahi hain."
+                        else "House Party Protocol authorized, sir. All automated secondary combat units dispatched to your coordinates."
                     }
                     "Stealth Mode" -> {
                         ttsHelper.stop()
-                        "Stealth mode engaged, sir. Audio telemetry suppressed, visual signature reduced."
+                        if (lang == com.example.data.repository.AssistantLanguage.HINDI) "स्टेल्थ मोड सक्रिय, सर। ऑडियो शांत कर दिया गया है।"
+                        else if (lang == com.example.data.repository.AssistantLanguage.HINGLISH) "Stealth mode active Sir. Audio telemetry suppress ho gaya hai."
+                        else "Stealth mode engaged, sir. Audio telemetry suppressed, visual signature reduced."
                     }
                     "Perimeter Defense Grid" -> {
-                        "Perimeter Defense Grid online, sir. Sentry scanners sweep radius set to maximum."
+                        if (lang == com.example.data.repository.AssistantLanguage.HINDI) "सुरक्षा घेरा ग्रिड सक्रिय, सर। सेंसर्स पूरी क्षमता पर हैं।"
+                        else if (lang == com.example.data.repository.AssistantLanguage.HINGLISH) "Perimeter defense grid online Sir! Sensors scanning range maximum pe hai."
+                        else "Perimeter Defense Grid online, sir. Sentry scanners sweep radius set to maximum."
                     }
                     else -> {
-                        "Protocol ${command.protocolName} executed, sir. Subsystems aligned."
+                        if (lang == com.example.data.repository.AssistantLanguage.HINDI) "प्रोटोकॉल ${command.protocolName} निष्पादित, सर।"
+                        else if (lang == com.example.data.repository.AssistantLanguage.HINGLISH) "Protocol ${command.protocolName} execute ho gaya Sir."
+                        else "Protocol ${command.protocolName} executed, sir. Subsystems aligned."
                     }
                 }
                 respondAsJarvis(reply, actionType = "PROTOCOL", actionPayload = command.protocolName, onResponseReady = onResponseReady)
             }
 
             is ParsedJarvisCommand.Weather -> {
-                val reply = "Atmospheric conditions in ${command.location}: 22°C, mostly clear with 12 km/h westerly winds, 48% humidity. Optimal flight conditions, sir."
+                val reply = when (lang) {
+                    com.example.data.repository.AssistantLanguage.HINDI ->
+                        "${command.location} में मौसम: 22°C, आसमान साफ और 48% आर्द्रता है, सर।"
+                    com.example.data.repository.AssistantLanguage.HINGLISH ->
+                        "${command.location} mein weather conditions: 22°C, mostly clear sky aur halki hawa chal rahi hai Sir."
+                    com.example.data.repository.AssistantLanguage.ENGLISH ->
+                        "Atmospheric conditions in ${command.location}: 22°C, mostly clear with 12 km/h westerly winds, 48% humidity. Optimal flight conditions, sir."
+                }
                 respondAsJarvis(reply, actionType = "WEATHER", actionPayload = command.location, onResponseReady = onResponseReady)
             }
 
             is ParsedJarvisCommand.ClearHistory -> {
                 repository.clearHistory()
-                val reply = "Memory buffers purged, sir. Clean slate protocol completed."
+                val reply = when (lang) {
+                    com.example.data.repository.AssistantLanguage.HINDI ->
+                        "मेमोरी बफ़र्स पूरी तरह साफ कर दिए गए हैं, सर।"
+                    com.example.data.repository.AssistantLanguage.HINGLISH ->
+                        "Memory buffers clear ho gaye hain Sir. Clean slate protocol complete!"
+                    com.example.data.repository.AssistantLanguage.ENGLISH ->
+                        "Memory buffers purged, sir. Clean slate protocol completed."
+                }
                 respondAsJarvis(reply, actionType = "CLEAR", onResponseReady = onResponseReady)
             }
 
             is ParsedJarvisCommand.GeneralQuery -> {
-                // Call Gemini API or fallback to smart Jarvis offline reasoning with selected personality
+                // Call Gemini API or fallback to smart Jarvis offline reasoning with selected language and personality
                 val recentMessages = messages.value.takeLast(6).map { it.sender to it.text }
                 val aiResult = GeminiClient.askJarvis(
                     userPrompt = command.query,
                     conversationHistory = recentMessages,
-                    systemInstruction = appearanceConfig.value.personality.promptPrefix
+                    language = appearanceConfig.value.voiceLanguage,
+                    personality = appearanceConfig.value.personality
                 )
-                val reply = aiResult.getOrDefault("Understood, sir. Subroutines updated.")
+                val defaultFallback = when (lang) {
+                    com.example.data.repository.AssistantLanguage.HINDI -> "निर्देश प्राप्त हुआ, सर। सभी प्रणालियाँ तत्पर हैं।"
+                    com.example.data.repository.AssistantLanguage.HINGLISH -> "Samajh gaya Sir! Subroutines update ho gaye hain."
+                    com.example.data.repository.AssistantLanguage.ENGLISH -> "Understood, sir. Subroutines updated."
+                }
+                val reply = aiResult.getOrDefault(defaultFallback)
                 respondAsJarvis(reply, onResponseReady = onResponseReady)
             }
         }

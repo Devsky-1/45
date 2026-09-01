@@ -4,6 +4,9 @@ import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
 import android.content.Intent
+import android.net.Uri
+import android.os.Build
+import android.provider.Settings
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.RepeatMode
@@ -82,6 +85,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.data.db.ChatMessageEntity
+import com.example.data.repository.AssistantLanguage
 import com.example.device.ActiveTimer
 import com.example.ui.JarvisViewModel
 import com.example.ui.components.AssistantShapeContainer
@@ -184,49 +188,91 @@ fun MainAssistantScreen(
                     .fillMaxWidth()
                     .padding(horizontal = 16.dp, vertical = 12.dp)
             ) {
-                // Left Brand Pill & Wake Word Indicator
+                // Left Brand Pill & Wake Word Indicator + Language Pill
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
-                    modifier = Modifier
-                        .clip(RoundedCornerShape(20.dp))
-                        .background(Color(0x26FFFFFF))
-                        .clickable {
-                            viewModel.toggleAmbientWakeWord(!config.wakeWordEnabled)
-                        }
-                        .padding(horizontal = 10.dp, vertical = 6.dp)
+                    horizontalArrangement = Arrangement.spacedBy(6.dp)
                 ) {
-                    Box(
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
                         modifier = Modifier
-                            .size(9.dp)
-                            .clip(CircleShape)
-                            .background(
-                                when (jarvisState) {
-                                    JarvisState.ALERT -> JarvisRed
-                                    JarvisState.LISTENING -> config.colorTheme.accentColor
-                                    JarvisState.SPEAKING -> JarvisAmber
-                                    JarvisState.PROCESSING -> JarvisCyanLight
-                                    JarvisState.STANDBY -> if (config.wakeWordEnabled && isAmbientListening) JarvisGreen else config.colorTheme.primaryColor
-                                }
+                            .clip(RoundedCornerShape(20.dp))
+                            .background(Color(0x26FFFFFF))
+                            .clickable {
+                                viewModel.toggleAmbientWakeWord(!config.wakeWordEnabled)
+                            }
+                            .padding(horizontal = 10.dp, vertical = 6.dp)
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .size(9.dp)
+                                .clip(CircleShape)
+                                .background(
+                                    when (jarvisState) {
+                                        JarvisState.ALERT -> JarvisRed
+                                        JarvisState.LISTENING -> config.colorTheme.accentColor
+                                        JarvisState.SPEAKING -> JarvisAmber
+                                        JarvisState.PROCESSING -> JarvisCyanLight
+                                        JarvisState.STANDBY -> if (config.wakeWordEnabled && isAmbientListening) JarvisGreen else config.colorTheme.primaryColor
+                                    }
+                                )
+                        )
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text(
+                            text = if (config.wakeWordEnabled) "🎤 ${config.effectiveWakeWord}" else "Muted",
+                            color = JarvisTextPrimary,
+                            fontSize = 11.5.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+
+                    // Quick Language Selector Pill (Cycles: English -> Hindi -> Hinglish)
+                    Surface(
+                        onClick = {
+                            val nextLang = when (config.voiceLanguage) {
+                                AssistantLanguage.ENGLISH -> AssistantLanguage.HINDI
+                                AssistantLanguage.HINDI -> AssistantLanguage.HINGLISH
+                                AssistantLanguage.HINGLISH -> AssistantLanguage.ENGLISH
+                            }
+                            viewModel.setAssistantLanguage(nextLang)
+                        },
+                        shape = RoundedCornerShape(20.dp),
+                        color = config.colorTheme.primaryColor.copy(alpha = 0.25f),
+                        border = BorderStroke(1.dp, config.colorTheme.accentColor.copy(alpha = 0.5f)),
+                        modifier = Modifier.testTag("btn_quick_language_switch")
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 5.dp)
+                        ) {
+                            Text(
+                                text = when (config.voiceLanguage) {
+                                    AssistantLanguage.ENGLISH -> "🌐 EN"
+                                    AssistantLanguage.HINDI -> "🇮🇳 हिन्दी"
+                                    AssistantLanguage.HINGLISH -> "🗣️ Hinglish"
+                                },
+                                color = config.colorTheme.accentColor,
+                                fontSize = 10.5.sp,
+                                fontWeight = FontWeight.Bold
                             )
-                    )
-                    Spacer(modifier = Modifier.width(7.dp))
-                    Text(
-                        text = if (config.wakeWordEnabled) "🎤 ${config.effectiveWakeWord}" else "Muted",
-                        color = JarvisTextPrimary,
-                        fontSize = 11.5.sp,
-                        fontWeight = FontWeight.Bold
-                    )
+                        }
+                    }
                 }
 
                 // Right Quick Action Icons
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    // Test Overlay Button
+                    // Test Siri Floating Shape Button
                     Surface(
                         onClick = {
-                            val intent = Intent(context, JarvisAssistActivity::class.java).apply {
-                                flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
+                            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M && !Settings.canDrawOverlays(context)) {
+                                val intent = Intent(
+                                    Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
+                                    Uri.parse("package:${context.packageName}")
+                                ).apply { flags = Intent.FLAG_ACTIVITY_NEW_TASK }
+                                context.startActivity(intent)
+                            } else {
+                                com.example.service.JarvisFloatingOverlayService.activateFromWakeWord(context, null)
                             }
-                            context.startActivity(intent)
                         },
                         shape = RoundedCornerShape(16.dp),
                         color = config.colorTheme.primaryColor.copy(alpha = 0.2f),
@@ -239,13 +285,13 @@ fun MainAssistantScreen(
                         ) {
                             Icon(
                                 imageVector = Icons.Default.Layers,
-                                contentDescription = "Overlay Mode",
+                                contentDescription = "Floating Shape",
                                 tint = config.colorTheme.accentColor,
                                 modifier = Modifier.size(14.dp)
                             )
                             Spacer(modifier = Modifier.width(4.dp))
                             Text(
-                                text = "OVERLAY",
+                                text = "FLOAT SHAPE",
                                 color = config.colorTheme.accentColor,
                                 fontSize = 10.sp,
                                 fontWeight = FontWeight.Bold

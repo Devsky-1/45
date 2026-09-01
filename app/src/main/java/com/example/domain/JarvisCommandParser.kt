@@ -20,16 +20,25 @@ object JarvisCommandParser {
     fun parse(input: String): ParsedJarvisCommand {
         val text = input.trim().lowercase()
 
-        // Flashlight intents
-        if (text.contains("flashlight on") || text.contains("turn on flashlight") || text.contains("torch on") || text.contains("enable lights") || text.contains("illuminate")) {
+        // Flashlight intents (English, Hindi & Hinglish)
+        if (text.contains("flashlight on") || text.contains("turn on flashlight") || text.contains("torch on") ||
+            text.contains("enable lights") || text.contains("illuminate") || text.contains("torch chalu") ||
+            text.contains("torch jalao") || text.contains("light jalao") || text.contains("light on") ||
+            text.contains("flashlight chalu") || text.contains("टॉर्च चालू") || text.contains("टॉर्च जलाओ") ||
+            text.contains("लाइट जलाओ") || text.contains("लाइट ऑन")) {
             return ParsedJarvisCommand.Flashlight(true)
         }
-        if (text.contains("flashlight off") || text.contains("turn off flashlight") || text.contains("torch off") || text.contains("disable lights")) {
+        if (text.contains("flashlight off") || text.contains("turn off flashlight") || text.contains("torch off") ||
+            text.contains("disable lights") || text.contains("torch band") || text.contains("torch bujhao") ||
+            text.contains("light band") || text.contains("flashlight band") || text.contains("टॉर्च बंद") ||
+            text.contains("टॉर्च बुझाओ") || text.contains("लाइट बंद")) {
             return ParsedJarvisCommand.Flashlight(false)
         }
 
-        // Clean slate / Clear history
-        if (text.contains("clean slate") || text.contains("clear history") || text.contains("purge logs")) {
+        // Clean slate / Clear history (English, Hindi & Hinglish)
+        if (text.contains("clean slate") || text.contains("clear history") || text.contains("purge logs") ||
+            text.contains("history saaf") || text.contains("chat delete") || text.contains("sab clear") ||
+            text.contains("हिस्ट्री साफ") || text.contains("सब मिटाओ")) {
             return ParsedJarvisCommand.ClearHistory
         }
 
@@ -45,8 +54,8 @@ object JarvisCommandParser {
             return ParsedJarvisCommand.Protocol(name)
         }
 
-        // Timers: e.g. "set a timer for 5 minutes", "timer 30 seconds", "timer 2 minutes for coffee"
-        if (text.contains("timer") || text.contains("countdown")) {
+        // Timers: e.g. "set a timer for 5 minutes", "timer 30 seconds", "5 minute ka timer lagao", "टाइमर लगाओ"
+        if (text.contains("timer") || text.contains("countdown") || text.contains("टाइमर") || text.contains("minute ka timer")) {
             val seconds = extractTimerSeconds(text)
             if (seconds > 0) {
                 val label = extractTimerLabel(text)
@@ -54,33 +63,43 @@ object JarvisCommandParser {
             }
         }
 
-        // Reminders: e.g. "remind me to call Pepper at 5 PM", "reminder buy groceries"
-        if (text.startsWith("remind") || text.contains("set a reminder") || text.contains("reminder")) {
+        // Reminders: e.g. "remind me to call Pepper at 5 PM", "reminder buy groceries", "yaad dilana 5 baje"
+        if (text.startsWith("remind") || text.contains("set a reminder") || text.contains("reminder") ||
+            text.contains("yaad dilana") || text.contains("yaad dila do") || text.contains("रिमाइंडर") || text.contains("याद दिलाना")) {
             val (title, due) = extractReminderDetails(input)
             return ParsedJarvisCommand.Reminder(title = title, dueTime = due)
         }
 
-        // Notes: e.g. "take a note buy milk", "note Stark tech idea"
-        if (text.startsWith("take a note") || text.startsWith("note:") || text.startsWith("new note") || text.startsWith("write note")) {
+        // Notes: e.g. "take a note buy milk", "note Stark tech idea", "note banao", "likh lo"
+        if (text.startsWith("take a note") || text.startsWith("note:") || text.startsWith("new note") ||
+            text.startsWith("write note") || text.contains("note banao") || text.contains("note likho") ||
+            text.contains("likh lo") || text.contains("नोट बनाओ") || text.contains("नोट लिखो")) {
             val content = input
-                .replace(Regex("(?i)^(take a note|new note|write note|note:?)\\s*(that|to|about)?\\s*"), "")
+                .replace(Regex("(?i)^(take a note|new note|write note|note banao|note likho|likh lo|नोट बनाओ|नोट लिखो|note:?)\\s*(that|to|about|ki|yeh)?\\s*"), "")
                 .trim()
             val title = if (content.length > 25) content.take(25) + "..." else content
             return ParsedJarvisCommand.Note(title = if (title.isBlank()) "Quick Note" else title, content = content)
         }
 
-        // Diagnostics
-        if (text.contains("diagnostic") || text.contains("system status") || text.contains("telemetry check") || text.contains("hardware scan")) {
+        // Diagnostics / System checks (English, Hindi & Hinglish)
+        if (text.contains("diagnostic") || text.contains("system status") || text.contains("telemetry check") ||
+            text.contains("hardware scan") || text.contains("battery kitni") || text.contains("battery level") ||
+            text.contains("status batao") || text.contains("kaisa chal raha") || text.contains("सिस्टम स्टेटस") ||
+            text.contains("बैटरी कितनी")) {
             return ParsedJarvisCommand.Diagnostic("ALL")
         }
 
-        // Daily Briefing
-        if (text == "good morning" || text.contains("daily briefing") || text.contains("morning report") || text.contains("status briefing")) {
+        // Daily Briefing / Greetings
+        if (text == "good morning" || text.contains("daily briefing") || text.contains("morning report") ||
+            text.contains("status briefing") || text.contains("aaj ka report") || text.contains("shubh prabhat") ||
+            text.contains("namaste") || text.contains("शुभ प्रभात") || text.contains("नमस्ते") || text.contains("aaj ka haal")) {
             return ParsedJarvisCommand.DailyBriefing
         }
 
-        // Weather: e.g. "weather", "weather in London", "atmospheric readings"
-        if (text.contains("weather") || text.contains("forecast") || text.contains("temperature") || text.contains("atmospheric")) {
+        // Weather: e.g. "weather", "weather in Mumbai", "mausam kaisa hai", "मौसम कैसा है"
+        if (text.contains("weather") || text.contains("forecast") || text.contains("temperature") ||
+            text.contains("atmospheric") || text.contains("mausam") || text.contains("barish") ||
+            text.contains("मौसम") || text.contains("बारिश")) {
             val location = extractLocation(text)
             return ParsedJarvisCommand.Weather(location)
         }

@@ -74,12 +74,14 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.data.repository.AssistantAppearanceConfig
 import com.example.data.repository.AssistantColorTheme
+import com.example.data.repository.AssistantLanguage
 import com.example.data.repository.AssistantPersonality
 import com.example.data.repository.AssistantShape
 import com.example.data.repository.WAKE_WORD_PRESETS
@@ -564,18 +566,76 @@ fun AssistantCustomizationScreen(
                     accentColor = config.colorTheme.accentColor
                 ) {
                     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                        val hasOverlayPermission = Build.VERSION.SDK_INT < Build.VERSION_CODES.M || Settings.canDrawOverlays(context)
+
+                        if (!hasOverlayPermission) {
+                            Surface(
+                                shape = RoundedCornerShape(16.dp),
+                                color = Color(0x33FFB300),
+                                border = BorderStroke(1.dp, JarvisAmber),
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clickable {
+                                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                                            val intent = Intent(
+                                                Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
+                                                Uri.parse("package:${context.packageName}")
+                                            ).apply { flags = Intent.FLAG_ACTIVITY_NEW_TASK }
+                                            context.startActivity(intent)
+                                        }
+                                    }
+                            ) {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(10.dp),
+                                    modifier = Modifier.padding(14.dp)
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.Layers,
+                                        contentDescription = "Permission",
+                                        tint = JarvisAmber,
+                                        modifier = Modifier.size(24.dp)
+                                    )
+                                    Column(modifier = Modifier.weight(1f)) {
+                                        Text(
+                                            text = "GRANT FLOATING OVERLAY PERMISSION",
+                                            color = JarvisAmber,
+                                            fontWeight = FontWeight.Bold,
+                                            fontSize = 11.sp,
+                                            fontFamily = FontFamily.Monospace
+                                        )
+                                        Text(
+                                            text = "Required for Siri-style floating shape to appear over home screen when you say '${config.effectiveWakeWord}'. Tap to enable.",
+                                            color = JarvisTextSecondary,
+                                            fontSize = 11.sp,
+                                            lineHeight = 15.sp
+                                        )
+                                    }
+                                }
+                            }
+                        }
+
                         // Always Listen for Wake Word in Background
                         StudioSwitchRow(
                             title = "Always-On Background Listener",
                             subtitle = "Listen for '${config.effectiveWakeWord}' while on home screen or outside app",
                             checked = config.wakeWordEnabled,
-                            onCheckedChange = { viewModel.toggleAmbientWakeWord(it) }
+                            onCheckedChange = { enabled ->
+                                viewModel.toggleAmbientWakeWord(enabled)
+                                if (enabled && !hasOverlayPermission && Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                                    val intent = Intent(
+                                        Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
+                                        Uri.parse("package:${context.packageName}")
+                                    ).apply { flags = Intent.FLAG_ACTIVITY_NEW_TASK }
+                                    context.startActivity(intent)
+                                }
+                            }
                         )
 
                         // Floating Home Screen Orb
                         StudioSwitchRow(
                             title = "Floating Home Screen Orb",
-                            subtitle = "Float your chosen assistant shape over other apps",
+                            subtitle = "Float your chosen assistant shape permanently over other apps",
                             checked = config.floatingBubbleEnabled,
                             onCheckedChange = { enabled ->
                                 viewModel.updateFloatingBubble(enabled)
@@ -594,6 +654,43 @@ fun AssistantCustomizationScreen(
                                 }
                             }
                         )
+
+                        // Preview / Test floating shape button
+                        Button(
+                            onClick = {
+                                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M && !Settings.canDrawOverlays(context)) {
+                                    val intent = Intent(
+                                        Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
+                                        Uri.parse("package:${context.packageName}")
+                                    ).apply { flags = Intent.FLAG_ACTIVITY_NEW_TASK }
+                                    context.startActivity(intent)
+                                } else {
+                                    JarvisFloatingOverlayService.activateFromWakeWord(context, null)
+                                }
+                            },
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = config.colorTheme.primaryColor.copy(alpha = 0.25f),
+                                contentColor = config.colorTheme.accentColor
+                            ),
+                            border = BorderStroke(1.dp, config.colorTheme.accentColor.copy(alpha = 0.6f)),
+                            shape = RoundedCornerShape(12.dp),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .testTag("test_floating_shape_button")
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.PlayArrow,
+                                contentDescription = "Test Shape",
+                                modifier = Modifier.size(16.dp)
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(
+                                text = "TEST FLOATING ${config.shape.displayName.uppercase()}",
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.Bold,
+                                fontFamily = FontFamily.Monospace
+                            )
+                        }
 
                         // Auto listen on open
                         StudioSwitchRow(
@@ -622,7 +719,97 @@ fun AssistantCustomizationScreen(
                 }
             }
 
-            // 6. VOICE SPEED, PITCH & PERSONALITY
+            // 6. VOICE LANGUAGE & DIALECT
+            item {
+                StudioSectionCard(
+                    title = "VOICE LANGUAGE & DIALECT",
+                    icon = Icons.Default.RecordVoiceOver,
+                    accentColor = config.colorTheme.accentColor
+                ) {
+                    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                        Text(
+                            text = "Select speech recognition and voice response language for JARVIS:",
+                            color = JarvisTextSecondary,
+                            fontSize = 12.sp
+                        )
+
+                        AssistantLanguage.values().forEach { lang ->
+                            val isSelected = config.voiceLanguage == lang
+                            Surface(
+                                onClick = { viewModel.setAssistantLanguage(lang) },
+                                shape = RoundedCornerShape(16.dp),
+                                color = if (isSelected) config.colorTheme.primaryColor.copy(alpha = 0.35f) else Color(0x1F1E293B),
+                                border = BorderStroke(
+                                    width = if (isSelected) 1.8.dp else 1.dp,
+                                    color = if (isSelected) config.colorTheme.accentColor else Color(0x26FFFFFF)
+                                ),
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .testTag("lang_${lang.name.lowercase()}")
+                            ) {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    modifier = Modifier.padding(horizontal = 14.dp, vertical = 12.dp)
+                                ) {
+                                    Column(modifier = Modifier.weight(1f)) {
+                                        Row(verticalAlignment = Alignment.CenterVertically) {
+                                            Text(
+                                                text = lang.displayName,
+                                                color = JarvisTextPrimary,
+                                                fontSize = 13.5.sp,
+                                                fontWeight = FontWeight.Bold
+                                            )
+                                            if (isSelected) {
+                                                Spacer(modifier = Modifier.width(8.dp))
+                                                Text(
+                                                    text = "SELECTED",
+                                                    color = config.colorTheme.accentColor,
+                                                    fontSize = 10.sp,
+                                                    fontWeight = FontWeight.Bold
+                                                )
+                                            }
+                                        }
+                                        Spacer(modifier = Modifier.height(2.dp))
+                                        Text(
+                                            text = lang.subtitle,
+                                            color = JarvisTextSecondary,
+                                            fontSize = 11.5.sp
+                                        )
+                                        Spacer(modifier = Modifier.height(4.dp))
+                                        Text(
+                                            text = "\"${lang.samplePhrase}\"",
+                                            color = config.colorTheme.accentColor.copy(alpha = 0.85f),
+                                            fontSize = 11.sp,
+                                            fontStyle = androidx.compose.ui.text.font.FontStyle.Italic
+                                        )
+                                    }
+
+                                    Spacer(modifier = Modifier.width(8.dp))
+
+                                    // Preview voice button
+                                    IconButton(
+                                        onClick = { viewModel.testVoiceLanguage(lang) },
+                                        modifier = Modifier
+                                            .size(36.dp)
+                                            .clip(CircleShape)
+                                            .background(if (isSelected) config.colorTheme.accentColor else Color(0x26FFFFFF))
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Default.VolumeUp,
+                                            contentDescription = "Test Voice",
+                                            tint = if (isSelected) Color.Black else JarvisTextPrimary,
+                                            modifier = Modifier.size(18.dp)
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            // 7. VOICE SPEED, PITCH & PERSONALITY
             item {
                 StudioSectionCard(
                     title = "VOICE ENGINE & PERSONALITY",
