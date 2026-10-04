@@ -6,57 +6,31 @@ import android.os.Build
 import android.os.Bundle
 import android.view.WindowManager
 import androidx.activity.ComponentActivity
+import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.viewModels
+import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.navigationBars
-import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawing
-import androidx.compose.foundation.layout.windowInsetsPadding
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Assistant
-import androidx.compose.material.icons.filled.Bolt
-import androidx.compose.material.icons.filled.Lock
-import androidx.compose.material.icons.filled.Memory
-import androidx.compose.material.icons.filled.Palette
-import androidx.compose.material.icons.filled.Speed
-import androidx.compose.material3.Icon
-import androidx.compose.material3.NavigationBar
-import androidx.compose.material3.NavigationBarItem
-import androidx.compose.material3.NavigationBarItemDefaults
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.platform.testTag
-import androidx.compose.ui.text.font.FontFamily
-import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
-import androidx.core.content.ContextCompat
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.ui.JarvisViewModel
 import com.example.ui.screens.AssistantCustomizationScreen
 import com.example.ui.screens.LockScreenOverlay
 import com.example.ui.screens.MainAssistantScreen
-import com.example.ui.screens.MemoryMatrixScreen
-import com.example.ui.screens.SystemDiagnosticsScreen
-import com.example.ui.theme.JarvisCardBg
-import com.example.ui.theme.JarvisCyan
-import com.example.ui.theme.JarvisCyanLight
-import com.example.ui.theme.JarvisObsidian
-import com.example.ui.theme.JarvisTextMuted
 import com.example.ui.theme.MyApplicationTheme
 
 class MainActivity : ComponentActivity() {
@@ -67,7 +41,7 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
 
-        // Enable show when locked and screen turn-on for Assistant
+        // Enable show when locked and screen turn-on for Voice Assistant
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O_MR1) {
             setShowWhenLocked(true)
             setTurnScreenOn(true)
@@ -86,22 +60,32 @@ class MainActivity : ComponentActivity() {
             }
         }
 
-        // Start background service for ambient wake word detection if enabled
-        if (viewModel.appearanceConfig.value.wakeWordEnabled) {
-            com.example.service.JarvisBackgroundService.start(this)
+        // Start background service for ambient wake word detection if enabled and permitted
+        if (viewModel.appearanceConfig.value.wakeWordEnabled &&
+            androidx.core.content.ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED) {
+            try {
+                com.example.service.JarvisBackgroundService.start(this)
+            } catch (_: Exception) {}
         }
     }
 }
 
 @Composable
 fun JarvisApp(viewModel: JarvisViewModel) {
+    val context = androidx.compose.ui.platform.LocalContext.current
     val selectedTab by viewModel.selectedTab.collectAsStateWithLifecycle()
     val isLockScreenActive by viewModel.isLockScreenActive.collectAsStateWithLifecycle()
 
     // Dynamic runtime microphone permission launcher
     val micPermissionLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.RequestPermission()
-    ) { _ -> }
+    ) { granted ->
+        if (granted && viewModel.appearanceConfig.value.wakeWordEnabled) {
+            try {
+                com.example.service.JarvisBackgroundService.start(context)
+            } catch (_: Exception) {}
+        }
+    }
 
     LaunchedEffect(Unit) {
         micPermissionLauncher.launch(Manifest.permission.RECORD_AUDIO)
@@ -109,161 +93,31 @@ fun JarvisApp(viewModel: JarvisViewModel) {
 
     Box(modifier = Modifier.fillMaxSize()) {
         Scaffold(
-            contentWindowInsets = WindowInsets.safeDrawing,
-            bottomBar = {
-                if (!isLockScreenActive) {
-                    NavigationBar(
-                        containerColor = Color(0xF00B101C),
-                        contentColor = JarvisCyan,
-                        tonalElevation = 8.dp,
-                        modifier = Modifier
-                            .windowInsetsPadding(WindowInsets.navigationBars)
-                            .testTag("main_navigation_bar")
-                    ) {
-                        NavigationBarItem(
-                            selected = selectedTab == 0,
-                            onClick = { viewModel.setSelectedTab(0) },
-                            icon = {
-                                Icon(
-                                    imageVector = Icons.Default.Assistant,
-                                    contentDescription = "Core HUD"
-                                )
-                            },
-                            label = {
-                                Text(
-                                    text = "Assistant",
-                                    fontSize = 11.sp,
-                                    fontWeight = if (selectedTab == 0) FontWeight.Bold else FontWeight.Normal
-                                )
-                            },
-                            colors = NavigationBarItemDefaults.colors(
-                                selectedIconColor = Color(0xFF001F24),
-                                selectedTextColor = JarvisCyanLight,
-                                indicatorColor = JarvisCyan,
-                                unselectedIconColor = JarvisTextMuted,
-                                unselectedTextColor = JarvisTextMuted
-                            ),
-                            modifier = Modifier.testTag("nav_core_hud")
-                        )
-
-                        NavigationBarItem(
-                            selected = selectedTab == 1,
-                            onClick = { viewModel.setSelectedTab(1) },
-                            icon = {
-                                Icon(
-                                    imageVector = Icons.Default.Palette,
-                                    contentDescription = "Customize"
-                                )
-                            },
-                            label = {
-                                Text(
-                                    text = "Studio",
-                                    fontSize = 11.sp,
-                                    fontWeight = if (selectedTab == 1) FontWeight.Bold else FontWeight.Normal
-                                )
-                            },
-                            colors = NavigationBarItemDefaults.colors(
-                                selectedIconColor = Color(0xFF001F24),
-                                selectedTextColor = JarvisCyanLight,
-                                indicatorColor = JarvisCyan,
-                                unselectedIconColor = JarvisTextMuted,
-                                unselectedTextColor = JarvisTextMuted
-                            ),
-                            modifier = Modifier.testTag("nav_studio_customize")
-                        )
-
-                        NavigationBarItem(
-                            selected = selectedTab == 2,
-                            onClick = { viewModel.setSelectedTab(2) },
-                            icon = {
-                                Icon(
-                                    imageVector = Icons.Default.Lock,
-                                    contentDescription = "Lock Screen"
-                                )
-                            },
-                            label = {
-                                Text(
-                                    text = "Lock",
-                                    fontSize = 11.sp,
-                                    fontWeight = if (selectedTab == 2) FontWeight.Bold else FontWeight.Normal
-                                )
-                            },
-                            colors = NavigationBarItemDefaults.colors(
-                                selectedIconColor = Color(0xFF001F24),
-                                selectedTextColor = JarvisCyanLight,
-                                indicatorColor = JarvisCyan,
-                                unselectedIconColor = JarvisTextMuted,
-                                unselectedTextColor = JarvisTextMuted
-                            ),
-                            modifier = Modifier.testTag("nav_lock_screen")
-                        )
-
-                        NavigationBarItem(
-                            selected = selectedTab == 3,
-                            onClick = { viewModel.setSelectedTab(3) },
-                            icon = {
-                                Icon(
-                                    imageVector = Icons.Default.Speed,
-                                    contentDescription = "Diagnostics"
-                                )
-                            },
-                            label = {
-                                Text(
-                                    text = "Status",
-                                    fontSize = 11.sp,
-                                    fontWeight = if (selectedTab == 3) FontWeight.Bold else FontWeight.Normal
-                                )
-                            },
-                            colors = NavigationBarItemDefaults.colors(
-                                selectedIconColor = Color(0xFF001F24),
-                                selectedTextColor = JarvisCyanLight,
-                                indicatorColor = JarvisCyan,
-                                unselectedIconColor = JarvisTextMuted,
-                                unselectedTextColor = JarvisTextMuted
-                            ),
-                            modifier = Modifier.testTag("nav_telemetry")
-                        )
-
-                        NavigationBarItem(
-                            selected = selectedTab == 4,
-                            onClick = { viewModel.setSelectedTab(4) },
-                            icon = {
-                                Icon(
-                                    imageVector = Icons.Default.Memory,
-                                    contentDescription = "Memory"
-                                )
-                            },
-                            label = {
-                                Text(
-                                    text = "Memory",
-                                    fontSize = 11.sp,
-                                    fontWeight = if (selectedTab == 4) FontWeight.Bold else FontWeight.Normal
-                                )
-                            },
-                            colors = NavigationBarItemDefaults.colors(
-                                selectedIconColor = Color(0xFF001F24),
-                                selectedTextColor = JarvisCyanLight,
-                                indicatorColor = JarvisCyan,
-                                unselectedIconColor = JarvisTextMuted,
-                                unselectedTextColor = JarvisTextMuted
-                            ),
-                            modifier = Modifier.testTag("nav_memory")
+            contentWindowInsets = WindowInsets.safeDrawing
+        ) { _ ->
+            AnimatedContent(
+                targetState = selectedTab,
+                transitionSpec = { fadeIn() togetherWith fadeOut() },
+                label = "screen_transition"
+            ) { tab ->
+                when (tab) {
+                    0 -> MainAssistantScreen(
+                        viewModel = viewModel,
+                        onOpenSettings = { viewModel.setSelectedTab(1) }
+                    )
+                    1 -> {
+                        BackHandler {
+                            viewModel.setSelectedTab(0)
+                        }
+                        AssistantCustomizationScreen(
+                            viewModel = viewModel,
+                            onNavigateBack = { viewModel.setSelectedTab(0) }
                         )
                     }
-                }
-            }
-        ) { paddingValues ->
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(paddingValues)
-            ) {
-                when (selectedTab) {
-                    0 -> MainAssistantScreen(viewModel = viewModel)
-                    1 -> AssistantCustomizationScreen(viewModel = viewModel)
-                    2 -> LockScreenOverlay(viewModel = viewModel, onDismiss = { viewModel.setSelectedTab(0) })
-                    3 -> SystemDiagnosticsScreen(viewModel = viewModel)
-                    4 -> MemoryMatrixScreen(viewModel = viewModel)
+                    else -> MainAssistantScreen(
+                        viewModel = viewModel,
+                        onOpenSettings = { viewModel.setSelectedTab(1) }
+                    )
                 }
             }
         }

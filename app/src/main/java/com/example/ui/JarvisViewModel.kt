@@ -86,11 +86,16 @@ class JarvisViewModel(application: Application) : AndroidViewModel(application) 
     val rmsAudioLevel: StateFlow<Float> = speechHelper.rmsAudioLevel
     val isTtsSpeaking: StateFlow<Boolean> = ttsHelper.isSpeaking
     val isMuted: StateFlow<Boolean> = ttsHelper.isMuted
+    val availableTtsVoices: StateFlow<List<com.example.audio.TtsVoiceInfo>> = ttsHelper.availableVoices
 
     init {
         // Initial speech settings
+        ttsHelper.setAssistantLanguage(appearanceConfig.value.voiceLanguage, appearanceConfig.value.selectedTtsVoiceName)
         ttsHelper.setPitch(appearanceConfig.value.speechPitch)
         ttsHelper.setSpeechRate(appearanceConfig.value.speechSpeed)
+        if (appearanceConfig.value.selectedTtsVoiceName.isNotBlank()) {
+            ttsHelper.setVoiceByName(appearanceConfig.value.selectedTtsVoiceName)
+        }
 
         // Configure Wake Word Engine
         wakeWordEngine.configure(
@@ -129,7 +134,13 @@ class JarvisViewModel(application: Application) : AndroidViewModel(application) 
                         processUserQuery(state.text)
                     }
                     is SpeechState.Error -> {
-                        _jarvisState.value = JarvisState.STANDBY
+                        _jarvisState.value = JarvisState.ALERT
+                        viewModelScope.launch {
+                            kotlinx.coroutines.delay(1200)
+                            if (_jarvisState.value == JarvisState.ALERT) {
+                                _jarvisState.value = JarvisState.STANDBY
+                            }
+                        }
                         wakeWordEngine.resume()
                     }
                     SpeechState.Idle -> {
@@ -234,6 +245,18 @@ class JarvisViewModel(application: Application) : AndroidViewModel(application) 
     fun updateWakeHaptic(enabled: Boolean) = setWakeHapticFeedback(enabled)
     fun updateSpeechPitch(pitch: Float) = setSpeechPitch(pitch)
     fun updateSpeechSpeed(speed: Float) = setSpeechSpeed(speed)
+
+    fun selectTtsVoice(voiceName: String) {
+        preferencesManager.setSelectedTtsVoice(voiceName)
+        ttsHelper.setVoiceByName(voiceName)
+        deviceController.vibrateHaptic(20)
+    }
+
+    fun testSelectedVoice(voiceName: String) {
+        selectTtsVoice(voiceName)
+        val sample = appearanceConfig.value.voiceLanguage.samplePhrase
+        speakText(sample)
+    }
     fun resetToDefaults() {
         preferencesManager.resetToDefaults()
         deviceController.vibrateHaptic(40)
@@ -409,7 +432,82 @@ class JarvisViewModel(application: Application) : AndroidViewModel(application) 
         val lang = appearanceConfig.value.voiceLanguage
 
         when (command) {
+            is ParsedJarvisCommand.StopSpeaking -> {
+                ttsHelper.stop()
+                _jarvisState.value = JarvisState.STANDBY
+                wakeWordEngine.resume()
+                deviceController.vibrateHaptic(40)
+            }
+
+            is ParsedJarvisCommand.TimeQuery -> {
+                val timeFormat = SimpleDateFormat("h:mm a", Locale.getDefault()).format(Date())
+                val reply = when (lang) {
+                    com.example.data.repository.AssistantLanguage.HINDI ->
+                        "अभी समय $timeFormat हुआ है, सर।"
+                    com.example.data.repository.AssistantLanguage.HINGLISH ->
+                        "Abhi time $timeFormat hai Sir."
+                    com.example.data.repository.AssistantLanguage.ENGLISH ->
+                        "The time is exactly $timeFormat, sir."
+                }
+                respondAsJarvis(reply, actionType = "TIME", actionPayload = timeFormat)
+            }
+
+            is ParsedJarvisCommand.DateQuery -> {
+                val dateFormat = SimpleDateFormat("EEEE, MMMM d, yyyy", Locale.getDefault()).format(Date())
+                val reply = when (lang) {
+                    com.example.data.repository.AssistantLanguage.HINDI ->
+                        "आज की तारीख $dateFormat है, सर।"
+                    com.example.data.repository.AssistantLanguage.HINGLISH ->
+                        "Aaj ki date $dateFormat hai Sir."
+                    com.example.data.repository.AssistantLanguage.ENGLISH ->
+                        "Today is $dateFormat, sir."
+                }
+                respondAsJarvis(reply, actionType = "DATE", actionPayload = dateFormat)
+            }
+
+            is ParsedJarvisCommand.OpenApp -> {
+                val launched = deviceController.openApp(command.appName, command.packageName)
+                val reply = if (launched) {
+                    when (lang) {
+                        com.example.data.repository.AssistantLanguage.HINDI ->
+                            "${command.appName} खोला जा रहा है, सर।"
+                        com.example.data.repository.AssistantLanguage.HINGLISH ->
+                            "${command.appName} open kar raha hoon Sir!"
+                        com.example.data.repository.AssistantLanguage.ENGLISH ->
+                            "Launching ${command.appName}, sir."
+                    }
+                } else {
+                    when (lang) {
+                        com.example.data.repository.AssistantLanguage.HINDI ->
+                            "${command.appName} खोलने में असमर्थ, कृपया जांचें कि यह इंस्टॉल है।"
+                        com.example.data.repository.AssistantLanguage.HINGLISH ->
+                            "${command.appName} nahi mila Sir, please check if installed."
+                        com.example.data.repository.AssistantLanguage.ENGLISH ->
+                            "Unable to locate or launch ${command.appName} on this system, sir."
+                    }
+                }
+                respondAsJarvis(reply, actionType = "OPEN_APP", actionPayload = command.appName)
+            }
+
+            is ParsedJarvisCommand.GoHome -> {
+                deviceController.goHome()
+                val reply = when (lang) {
+                    com.example.data.repository.AssistantLanguage.HINDI ->
+                        "होम स्क्रीन पर जा रहे हैं, सर।"
+                    com.example.data.repository.AssistantLanguage.HINGLISH ->
+                        "Home screen par switch kar raha hoon Sir!"
+                    com.example.data.repository.AssistantLanguage.ENGLISH ->
+                        "Returning to home screen, sir."
+                }
+                respondAsJarvis(reply, actionType = "HOME")
+            }
+
+            is ParsedJarvisCommand.MathCalculation -> {
+                respondAsJarvis(command.result, actionType = "CALCULATION", actionPayload = command.expression)
+            }
+
             is ParsedJarvisCommand.Flashlight -> {
+
                 val success = deviceController.setFlashlight(command.enable)
                 val reply = when (lang) {
                     com.example.data.repository.AssistantLanguage.HINDI ->
@@ -599,7 +697,84 @@ class JarvisViewModel(application: Application) : AndroidViewModel(application) 
         deviceController.cancelTimer(id)
     }
 
+    fun onPillClicked() {
+        when (_jarvisState.value) {
+            JarvisState.SPEAKING -> {
+                ttsHelper.stop()
+                _jarvisState.value = JarvisState.STANDBY
+                wakeWordEngine.resume()
+                deviceController.vibrateHaptic(35)
+            }
+            JarvisState.LISTENING -> {
+                speechHelper.stopListening()
+                _jarvisState.value = JarvisState.STANDBY
+                wakeWordEngine.resume()
+                deviceController.vibrateHaptic(30)
+            }
+            JarvisState.PROCESSING -> {
+                // Cancel current thinking
+                _jarvisState.value = JarvisState.STANDBY
+                wakeWordEngine.resume()
+                deviceController.vibrateHaptic(25)
+            }
+            JarvisState.ALERT -> {
+                _jarvisState.value = JarvisState.STANDBY
+                deviceController.vibrateHaptic(25)
+            }
+            JarvisState.STANDBY -> {
+                toggleVoiceRecognition()
+            }
+        }
+    }
+
+    fun onPillLongClicked() {
+        deviceController.vibrateHaptic(70)
+        ttsHelper.stop()
+        speechHelper.startListening(
+            onResult = { spokenText -> processUserQuery(spokenText) },
+            onError = { _jarvisState.value = JarvisState.STANDBY }
+        )
+    }
+
+    fun updateCustomPillOffset(xPercent: Float, yPercent: Float) {
+        preferencesManager.setCustomOffset(xPercent, yPercent)
+    }
+
+    fun setPillPositionMode(mode: com.example.data.repository.PillPositionMode) {
+        preferencesManager.setPillPositionMode(mode)
+        deviceController.vibrateHaptic(25)
+    }
+
+    fun setPillSizeOption(option: com.example.data.repository.PillSizeOption) {
+        preferencesManager.setPillSizeOption(option)
+        deviceController.vibrateHaptic(20)
+    }
+
+    fun setPillScale(scale: Float) {
+        preferencesManager.setPillScale(scale)
+    }
+
+    fun setPillOpacity(opacity: Float) {
+        preferencesManager.setPillOpacity(opacity)
+    }
+
+    fun setPillGlowLevel(glow: com.example.data.repository.PillGlowLevel) {
+        preferencesManager.setPillGlowLevel(glow)
+        deviceController.vibrateHaptic(20)
+    }
+
+    fun setPillAnimationStyle(anim: com.example.data.repository.PillAnimationStyle) {
+        preferencesManager.setPillAnimationStyle(anim)
+        deviceController.vibrateHaptic(20)
+    }
+
+    fun setShowSubtleTranscription(show: Boolean) {
+        preferencesManager.setShowSubtleTranscription(show)
+        deviceController.vibrateHaptic(20)
+    }
+
     fun toggleBackgroundService(enable: Boolean? = null) {
+
         val app = getApplication<Application>()
         val newState = enable ?: !_isBackgroundServiceActive.value
         _isBackgroundServiceActive.value = newState

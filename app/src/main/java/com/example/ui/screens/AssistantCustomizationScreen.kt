@@ -1,17 +1,10 @@
 package com.example.ui.screens
 
-import android.content.Intent
-import android.net.Uri
-import android.os.Build
-import android.provider.Settings
 import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -25,25 +18,25 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.ColorLens
+import androidx.compose.material.icons.filled.DeleteSweep
 import androidx.compose.material.icons.filled.Hearing
 import androidx.compose.material.icons.filled.Layers
 import androidx.compose.material.icons.filled.Mic
+import androidx.compose.material.icons.filled.OpenWith
 import androidx.compose.material.icons.filled.Palette
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Psychology
 import androidx.compose.material.icons.filled.RecordVoiceOver
-import androidx.compose.material.icons.filled.RoundedCorner
-import androidx.compose.material.icons.filled.Save
-import androidx.compose.material.icons.filled.Sensors
+import androidx.compose.material.icons.filled.RestartAlt
 import androidx.compose.material.icons.filled.Speed
 import androidx.compose.material.icons.filled.Tune
 import androidx.compose.material.icons.filled.Vibration
@@ -74,7 +67,6 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
-import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -83,33 +75,33 @@ import com.example.data.repository.AssistantAppearanceConfig
 import com.example.data.repository.AssistantColorTheme
 import com.example.data.repository.AssistantLanguage
 import com.example.data.repository.AssistantPersonality
-import com.example.data.repository.AssistantShape
+import com.example.data.repository.PillAnimationStyle
+import com.example.data.repository.PillGlowLevel
+import com.example.data.repository.PillPositionMode
+import com.example.data.repository.PillSizeOption
 import com.example.data.repository.WAKE_WORD_PRESETS
-import com.example.service.JarvisFloatingOverlayService
 import com.example.ui.JarvisViewModel
-import com.example.ui.components.AssistantShapeContainer
 import com.example.ui.components.JarvisState
-import com.example.ui.theme.JarvisAmber
-import com.example.ui.theme.JarvisCyan
-import com.example.ui.theme.JarvisGreen
-import com.example.ui.theme.JarvisRed
-import com.example.ui.theme.JarvisTextMuted
-import com.example.ui.theme.JarvisTextPrimary
-import com.example.ui.theme.JarvisTextSecondary
+import com.example.ui.components.SiriPillVisualizer
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun AssistantCustomizationScreen(
     viewModel: JarvisViewModel,
+    onNavigateBack: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     val config by viewModel.appearanceConfig.collectAsStateWithLifecycle()
     val jarvisState by viewModel.jarvisState.collectAsStateWithLifecycle()
     val audioLevel by viewModel.rmsAudioLevel.collectAsStateWithLifecycle()
-    val isAmbientListening by viewModel.isAmbientWakeWordListening.collectAsStateWithLifecycle()
+    val messages by viewModel.messages.collectAsStateWithLifecycle()
+    val telemetry by viewModel.telemetry.collectAsStateWithLifecycle()
+    val availableVoices by viewModel.availableTtsVoices.collectAsStateWithLifecycle()
 
     var customInputText by remember(config.customWakeWord) { mutableStateOf(config.customWakeWord) }
-    val context = LocalContext.current
 
     Column(
         modifier = modifier
@@ -123,227 +115,280 @@ fun AssistantCustomizationScreen(
                     )
                 )
             )
-            .testTag("customization_screen")
+            .testTag("settings_screen"),
+        horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        // TOP APP BAR
+        // Top App Bar with Back Button
         Surface(
-            color = Color(0xCC11192C),
-            shape = RoundedCornerShape(bottomStart = 24.dp, bottomEnd = 24.dp),
-            border = BorderStroke(1.dp, Color(0x2EFFFFFF)),
+            color = Color(0xDD11192C),
+            shape = RoundedCornerShape(bottomStart = 20.dp, bottomEnd = 20.dp),
+            border = BorderStroke(1.dp, Color(0x22FFFFFF)),
             modifier = Modifier.fillMaxWidth()
         ) {
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.SpaceBetween,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 16.dp, vertical = 14.dp)
-            ) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Box(
-                        contentAlignment = Alignment.Center,
-                        modifier = Modifier
-                            .size(32.dp)
-                            .clip(CircleShape)
-                            .background(config.colorTheme.primaryColor.copy(alpha = 0.25f))
+            Box(modifier = Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .widthIn(max = 720.dp)
+                        .padding(horizontal = 12.dp, vertical = 12.dp)
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        IconButton(
+                            onClick = onNavigateBack,
+                            modifier = Modifier.testTag("settings_back_button")
+                        ) {
+                            Icon(
+                                imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                                contentDescription = "Back to Assistant",
+                                tint = Color.White
+                            )
+                        }
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Column {
+                            Text(
+                                text = "ASSISTANT SETTINGS",
+                                color = Color.White,
+                                fontSize = 15.sp,
+                                fontWeight = FontWeight.Bold
+                            )
+                            Text(
+                                text = "Pill UI, Voice, Language & Behavior",
+                                color = Color(0xFF94A3B8),
+                                fontSize = 11.sp
+                            )
+                        }
+                    }
+
+                    IconButton(
+                        onClick = { viewModel.resetToDefaults() },
+                        modifier = Modifier.testTag("reset_defaults_button")
                     ) {
                         Icon(
-                            imageVector = Icons.Default.Palette,
-                            contentDescription = "Studio",
-                            tint = config.colorTheme.accentColor,
-                            modifier = Modifier.size(18.dp)
+                            imageVector = Icons.Default.RestartAlt,
+                            contentDescription = "Reset Settings",
+                            tint = Color(0xFF94A3B8)
                         )
                     }
-                    Spacer(modifier = Modifier.width(10.dp))
-                    Column {
-                        Text(
-                            text = "ASSISTANT STUDIO",
-                            color = JarvisTextPrimary,
-                            fontSize = 14.sp,
-                            fontWeight = FontWeight.Bold,
-                            letterSpacing = 0.8.sp
-                        )
-                        Text(
-                            text = "WAKE WORD, FORM & INTELLIGENCE",
-                            color = JarvisTextMuted,
-                            fontSize = 10.sp
-                        )
-                    }
-                }
-
-                Surface(
-                    onClick = { viewModel.resetToDefaults() },
-                    shape = RoundedCornerShape(14.dp),
-                    color = Color(0x1AFFFFFF),
-                    border = BorderStroke(1.dp, Color(0x33FFFFFF))
-                ) {
-                    Text(
-                        text = "Reset",
-                        color = JarvisTextSecondary,
-                        fontSize = 11.sp,
-                        fontWeight = FontWeight.Medium,
-                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp)
-                    )
                 }
             }
         }
 
-        // MAIN SETTINGS LIST
         LazyColumn(
             modifier = Modifier
-                .weight(1f)
-                .fillMaxWidth()
+                .fillMaxSize()
+                .widthIn(max = 720.dp)
                 .padding(horizontal = 16.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp)
+            verticalArrangement = Arrangement.spacedBy(20.dp)
         ) {
-            item { Spacer(modifier = Modifier.height(4.dp)) }
+            item { Spacer(modifier = Modifier.height(6.dp)) }
 
-            // 1. LIVE INTERACTIVE STAGE
+            // 1. LIVE PILL INTERACTIVE PREVIEW
             item {
-                StudioSectionCard(
-                    title = "LIVE ASSISTANT PREVIEW",
-                    icon = Icons.Default.Sensors,
-                    accentColor = config.colorTheme.accentColor
+                Card(
+                    shape = RoundedCornerShape(20.dp),
+                    colors = CardDefaults.cardColors(containerColor = Color(0x550F172A)),
+                    border = BorderStroke(1.dp, config.colorTheme.primaryColor.copy(alpha = 0.35f)),
+                    modifier = Modifier.fillMaxWidth()
                 ) {
                     Column(
                         horizontalAlignment = Alignment.CenterHorizontally,
-                        modifier = Modifier.fillMaxWidth()
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(20.dp)
                     ) {
-                        // Live Shape Viewport
-                        Box(
-                            contentAlignment = Alignment.Center,
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .height(160.dp)
-                                .clip(RoundedCornerShape(20.dp))
-                                .background(Color(0x33000000))
-                                .border(1.dp, config.colorTheme.primaryColor.copy(alpha = 0.3f), RoundedCornerShape(20.dp))
-                                .padding(12.dp)
-                        ) {
-                            AssistantShapeContainer(
-                                state = jarvisState,
-                                config = config,
-                                audioLevel = audioLevel,
-                                onClick = { viewModel.toggleVoiceRecognition() }
-                            )
-                        }
+                        Text(
+                            text = "LIVE PILL PREVIEW",
+                            color = config.colorTheme.accentColor,
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Bold,
+                            letterSpacing = 1.2.sp
+                        )
+                        Spacer(modifier = Modifier.height(16.dp))
 
-                        Spacer(modifier = Modifier.height(10.dp))
+                        SiriPillVisualizer(
+                            state = jarvisState,
+                            config = config,
+                            audioLevel = audioLevel,
+                            onClick = { viewModel.onPillClicked() },
+                            onLongClick = { viewModel.onPillLongClicked() }
+                        )
 
-                        // Trigger actions
-                        Row(
-                            horizontalArrangement = Arrangement.spacedBy(8.dp),
-                            modifier = Modifier.fillMaxWidth()
-                        ) {
-                            // Test voice recognition
-                            Button(
-                                onClick = { viewModel.toggleVoiceRecognition() },
-                                colors = ButtonDefaults.buttonColors(
-                                    containerColor = if (jarvisState == JarvisState.LISTENING) config.colorTheme.accentColor else Color(0x26FFFFFF)
-                                ),
-                                shape = RoundedCornerShape(14.dp),
-                                border = BorderStroke(1.dp, config.colorTheme.accentColor.copy(alpha = 0.5f)),
-                                modifier = Modifier.weight(1f)
-                            ) {
-                                Icon(
-                                    imageVector = if (jarvisState == JarvisState.LISTENING) Icons.Default.Mic else Icons.Default.PlayArrow,
-                                    contentDescription = null,
-                                    tint = if (jarvisState == JarvisState.LISTENING) Color.Black else JarvisTextPrimary,
-                                    modifier = Modifier.size(16.dp)
-                                )
-                                Spacer(modifier = Modifier.width(6.dp))
-                                Text(
-                                    text = if (jarvisState == JarvisState.LISTENING) "Listening..." else "Test Voice",
-                                    color = if (jarvisState == JarvisState.LISTENING) Color.Black else JarvisTextPrimary,
-                                    fontSize = 12.sp,
-                                    fontWeight = FontWeight.SemiBold
-                                )
-                            }
-
-                            // Test System Overlay
-                            Button(
-                                onClick = {
-                                    val intent = Intent(context, JarvisAssistActivity::class.java).apply {
-                                        flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
-                                    }
-                                    context.startActivity(intent)
-                                },
-                                colors = ButtonDefaults.buttonColors(
-                                    containerColor = config.colorTheme.primaryColor.copy(alpha = 0.35f)
-                                ),
-                                shape = RoundedCornerShape(14.dp),
-                                border = BorderStroke(1.dp, config.colorTheme.accentColor),
-                                modifier = Modifier
-                                    .weight(1.1f)
-                                    .testTag("btn_test_overlay_studio")
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Default.Layers,
-                                    contentDescription = null,
-                                    tint = config.colorTheme.accentColor,
-                                    modifier = Modifier.size(16.dp)
-                                )
-                                Spacer(modifier = Modifier.width(6.dp))
-                                Text(
-                                    text = "Test Home Overlay",
-                                    color = JarvisTextPrimary,
-                                    fontSize = 12.sp,
-                                    fontWeight = FontWeight.SemiBold
-                                )
-                            }
-                        }
+                        Spacer(modifier = Modifier.height(12.dp))
+                        Text(
+                            text = "Tap to test listening / speaking states",
+                            color = Color(0xFF64748B),
+                            fontSize = 11.sp
+                        )
                     }
                 }
             }
 
-            // 2. WAKE WORD TRIGGER SELECTOR
+            // 2. PILL POSITIONING SYSTEM (EXTREMELY IMPORTANT)
             item {
-                StudioSectionCard(
-                    title = "WAKE WORD TRIGGER",
-                    icon = Icons.Default.Hearing,
-                    accentColor = config.colorTheme.accentColor
+                SectionHeader(title = "PILL POSITION & DRAGGING", icon = Icons.Default.OpenWith)
+                Card(
+                    shape = RoundedCornerShape(16.dp),
+                    colors = CardDefaults.cardColors(containerColor = Color(0x331E293B)),
+                    border = BorderStroke(1.dp, Color(0x22FFFFFF)),
+                    modifier = Modifier.fillMaxWidth()
                 ) {
-                    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    Column(modifier = Modifier.padding(16.dp)) {
                         Text(
-                            text = "Choose the phrase you say on your home screen or anywhere to summon the assistant:",
-                            color = JarvisTextSecondary,
-                            fontSize = 12.sp
+                            text = "Screen Position Anchor",
+                            color = Color.White,
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.SemiBold
                         )
+                        Text(
+                            text = "Choose a preset or freely touch & drag the pill anywhere on the main screen.",
+                            color = Color(0xFF94A3B8),
+                            fontSize = 11.sp
+                        )
+                        Spacer(modifier = Modifier.height(12.dp))
 
-                        // Preset cards
                         FlowRow(
                             horizontalArrangement = Arrangement.spacedBy(8.dp),
                             verticalArrangement = Arrangement.spacedBy(8.dp),
                             modifier = Modifier.fillMaxWidth()
                         ) {
-                            WAKE_WORD_PRESETS.forEach { preset ->
-                                val isSelected = config.selectedWakeWord == preset && config.customWakeWord.isBlank()
-                                Surface(
-                                    onClick = { viewModel.updateSelectedWakeWord(preset) },
-                                    shape = RoundedCornerShape(14.dp),
-                                    color = if (isSelected) config.colorTheme.primaryColor.copy(alpha = 0.35f) else Color(0x1F1E293B),
-                                    border = BorderStroke(
-                                        width = if (isSelected) 1.5.dp else 1.dp,
-                                        color = if (isSelected) config.colorTheme.accentColor else Color(0x26FFFFFF)
-                                    )
+                            PillPositionMode.values().forEach { mode ->
+                                val isSelected = config.pillPositionMode == mode
+                                PositionChip(
+                                    mode = mode,
+                                    isSelected = isSelected,
+                                    onClick = { viewModel.setPillPositionMode(mode) }
+                                )
+                            }
+                        }
+
+                        if (config.pillPositionMode == PillPositionMode.CUSTOM) {
+                            Spacer(modifier = Modifier.height(14.dp))
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                Text(
+                                    text = "Custom Coordinates: (${(config.customOffsetXPercent * 100).toInt()}%, ${(config.customOffsetYPercent * 100).toInt()}%)",
+                                    color = Color(0xFF38BDF8),
+                                    fontSize = 11.sp
+                                )
+                                Button(
+                                    onClick = { viewModel.updateCustomPillOffset(0.5f, 0.85f) },
+                                    colors = ButtonDefaults.buttonColors(containerColor = Color(0x3338BDF8)),
+                                    shape = RoundedCornerShape(8.dp)
                                 ) {
-                                    Row(
-                                        verticalAlignment = Alignment.CenterVertically,
-                                        modifier = Modifier.padding(horizontal = 14.dp, vertical = 9.dp)
+                                    Text("Reset Center", fontSize = 11.sp, color = Color.White)
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            // 3. PILL CUSTOMIZATION & GEOMETRY
+            item {
+                SectionHeader(title = "PILL VISUAL CRAFT & GLOW", icon = Icons.Default.Tune)
+                Card(
+                    shape = RoundedCornerShape(16.dp),
+                    colors = CardDefaults.cardColors(containerColor = Color(0x331E293B)),
+                    border = BorderStroke(1.dp, Color(0x22FFFFFF)),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Column(
+                        modifier = Modifier.padding(16.dp),
+                        verticalArrangement = Arrangement.spacedBy(16.dp)
+                    ) {
+                        // Pill Size
+                        Column {
+                            Text("Pill Size", color = Color.White, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
+                            Spacer(modifier = Modifier.height(8.dp))
+                            Row(
+                                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                PillSizeOption.values().forEach { sizeOpt ->
+                                    val isSelected = config.pillSizeOption == sizeOpt
+                                    Box(
+                                        contentAlignment = Alignment.Center,
+                                        modifier = Modifier
+                                            .weight(1f)
+                                            .clip(RoundedCornerShape(10.dp))
+                                            .background(if (isSelected) config.colorTheme.primaryColor else Color(0x22FFFFFF))
+                                            .clickable { viewModel.setPillSizeOption(sizeOpt) }
+                                            .padding(vertical = 8.dp)
                                     ) {
-                                        if (isSelected) {
-                                            Icon(
-                                                imageVector = Icons.Default.Check,
-                                                contentDescription = null,
-                                                tint = config.colorTheme.accentColor,
-                                                modifier = Modifier.size(14.dp)
-                                            )
-                                            Spacer(modifier = Modifier.width(6.dp))
-                                        }
                                         Text(
-                                            text = preset,
-                                            color = if (isSelected) JarvisTextPrimary else JarvisTextSecondary,
-                                            fontSize = 12.5.sp,
+                                            text = sizeOpt.displayName,
+                                            color = if (isSelected) Color.White else Color(0xFF94A3B8),
+                                            fontSize = 11.sp,
+                                            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal
+                                        )
+                                    }
+                                }
+                            }
+
+                            if (config.pillSizeOption == PillSizeOption.CUSTOM) {
+                                Spacer(modifier = Modifier.height(8.dp))
+                                Text(
+                                    text = "Scale Factor: ${String.format(Locale.getDefault(), "%.2f", config.pillScale)}x",
+                                    color = Color(0xFF94A3B8),
+                                    fontSize = 11.sp
+                                )
+                                Slider(
+                                    value = config.pillScale,
+                                    onValueChange = { viewModel.setPillScale(it) },
+                                    valueRange = 0.65f..1.45f,
+                                    colors = SliderDefaults.colors(
+                                        thumbColor = config.colorTheme.accentColor,
+                                        activeTrackColor = config.colorTheme.primaryColor
+                                    )
+                                )
+                            }
+                        }
+
+                        // Pill Opacity
+                        Column {
+                            Row(
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                Text("Pill Opacity", color = Color.White, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
+                                Text("${(config.pillOpacity * 100).toInt()}%", color = Color(0xFF94A3B8), fontSize = 12.sp)
+                            }
+                            Slider(
+                                value = config.pillOpacity,
+                                onValueChange = { viewModel.setPillOpacity(it) },
+                                valueRange = 0.3f..1.0f,
+                                colors = SliderDefaults.colors(
+                                    thumbColor = config.colorTheme.accentColor,
+                                    activeTrackColor = config.colorTheme.primaryColor
+                                )
+                            )
+                        }
+
+                        // Glow Level
+                        Column {
+                            Text("Glow Intensity", color = Color.White, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
+                            Spacer(modifier = Modifier.height(8.dp))
+                            Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
+                                PillGlowLevel.values().forEach { glow ->
+                                    val isSelected = config.pillGlowLevel == glow
+                                    Box(
+                                        contentAlignment = Alignment.Center,
+                                        modifier = Modifier
+                                            .weight(1f)
+                                            .clip(RoundedCornerShape(10.dp))
+                                            .background(if (isSelected) config.colorTheme.primaryColor else Color(0x22FFFFFF))
+                                            .clickable { viewModel.setPillGlowLevel(glow) }
+                                            .padding(vertical = 8.dp)
+                                    ) {
+                                        Text(
+                                            text = glow.displayName,
+                                            color = if (isSelected) Color.White else Color(0xFF94A3B8),
+                                            fontSize = 11.sp,
                                             fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal
                                         )
                                     }
@@ -351,505 +396,185 @@ fun AssistantCustomizationScreen(
                             }
                         }
 
-                        Spacer(modifier = Modifier.height(2.dp))
-
-                        // Custom wake word input
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            modifier = Modifier.fillMaxWidth()
-                        ) {
-                            OutlinedTextField(
-                                value = customInputText,
-                                onValueChange = { customInputText = it },
-                                placeholder = { Text("Or enter custom wake word...", color = JarvisTextMuted, fontSize = 12.sp) },
-                                singleLine = true,
-                                shape = RoundedCornerShape(14.dp),
-                                colors = OutlinedTextFieldDefaults.colors(
-                                    focusedBorderColor = config.colorTheme.accentColor,
-                                    unfocusedBorderColor = Color(0x33FFFFFF),
-                                    focusedTextColor = JarvisTextPrimary,
-                                    unfocusedTextColor = JarvisTextPrimary,
-                                    focusedContainerColor = Color(0x22000000),
-                                    unfocusedContainerColor = Color(0x1A000000)
-                                ),
-                                modifier = Modifier
-                                    .weight(1f)
-                                    .testTag("custom_wakeword_input")
-                            )
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Button(
-                                onClick = {
-                                    viewModel.updateCustomWakeWord(customInputText)
-                                },
-                                colors = ButtonDefaults.buttonColors(containerColor = config.colorTheme.accentColor),
-                                shape = RoundedCornerShape(14.dp),
-                                modifier = Modifier.testTag("btn_save_wakeword")
-                            ) {
-                                Text("Save", color = Color(0xFF001E2B), fontWeight = FontWeight.Bold, fontSize = 12.sp)
-                            }
-                        }
-
-                        // Test current wake word
-                        Button(
-                            onClick = { viewModel.testCurrentWakeWord() },
-                            colors = ButtonDefaults.buttonColors(containerColor = Color(0x24FFFFFF)),
-                            shape = RoundedCornerShape(12.dp),
-                            border = BorderStroke(1.dp, Color(0x33FFFFFF)),
-                            modifier = Modifier.fillMaxWidth()
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.Hearing,
-                                contentDescription = null,
-                                tint = config.colorTheme.accentColor,
-                                modifier = Modifier.size(16.dp)
-                            )
-                            Spacer(modifier = Modifier.width(6.dp))
-                            Text(
-                                text = "Calibrate & Verify: \"${config.effectiveWakeWord}\"",
-                                color = JarvisTextPrimary,
-                                fontSize = 12.sp,
-                                fontWeight = FontWeight.SemiBold
-                            )
-                        }
-                    }
-                }
-            }
-
-            // 3. ASSISTANT FORM & SHAPE GALLERY
-            item {
-                StudioSectionCard(
-                    title = "ASSISTANT SHAPE & FORM",
-                    icon = Icons.Default.RoundedCorner,
-                    accentColor = config.colorTheme.accentColor
-                ) {
-                    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                        AssistantShape.values().forEach { shape ->
-                            val isSelected = config.shape == shape
-                            Surface(
-                                onClick = { viewModel.updateShape(shape) },
-                                shape = RoundedCornerShape(16.dp),
-                                color = if (isSelected) config.colorTheme.primaryColor.copy(alpha = 0.3f) else Color(0x1F1E293B),
-                                border = BorderStroke(
-                                    width = if (isSelected) 1.8.dp else 1.dp,
-                                    color = if (isSelected) config.colorTheme.accentColor else Color(0x26FFFFFF)
-                                ),
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .testTag("shape_card_${shape.name.lowercase()}")
-                            ) {
-                                Row(
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.SpaceBetween,
-                                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp)
-                                ) {
-                                    Column(modifier = Modifier.weight(1f)) {
-                                        Row(verticalAlignment = Alignment.CenterVertically) {
-                                            Text(
-                                                text = shape.displayName,
-                                                color = JarvisTextPrimary,
-                                                fontSize = 13.5.sp,
-                                                fontWeight = FontWeight.Bold
-                                            )
-                                            if (isSelected) {
-                                                Spacer(modifier = Modifier.width(8.dp))
-                                                Text(
-                                                    text = "ACTIVE",
-                                                    color = config.colorTheme.accentColor,
-                                                    fontSize = 10.sp,
-                                                    fontWeight = FontWeight.Bold
-                                                )
-                                            }
-                                        }
-                                        Spacer(modifier = Modifier.height(2.dp))
-                                        Text(
-                                            text = shape.description,
-                                            color = JarvisTextSecondary,
-                                            fontSize = 11.5.sp
-                                        )
-                                    }
-
+                        // Animation Style
+                        Column {
+                            Text("Animation Dynamics", color = Color.White, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
+                            Spacer(modifier = Modifier.height(8.dp))
+                            Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
+                                PillAnimationStyle.values().forEach { anim ->
+                                    val isSelected = config.pillAnimationStyle == anim
                                     Box(
                                         contentAlignment = Alignment.Center,
                                         modifier = Modifier
-                                            .size(24.dp)
-                                            .clip(CircleShape)
-                                            .background(if (isSelected) config.colorTheme.accentColor else Color(0x26FFFFFF))
+                                            .weight(1f)
+                                            .clip(RoundedCornerShape(10.dp))
+                                            .background(if (isSelected) config.colorTheme.primaryColor else Color(0x22FFFFFF))
+                                            .clickable { viewModel.setPillAnimationStyle(anim) }
+                                            .padding(vertical = 8.dp)
                                     ) {
-                                        if (isSelected) {
-                                            Icon(
-                                                imageVector = Icons.Default.Check,
-                                                contentDescription = null,
-                                                tint = Color.Black,
-                                                modifier = Modifier.size(14.dp)
-                                            )
-                                        }
+                                        Text(
+                                            text = anim.displayName,
+                                            color = if (isSelected) Color.White else Color(0xFF94A3B8),
+                                            fontSize = 11.sp,
+                                            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal
+                                        )
                                     }
                                 }
                             }
+                        }
+
+                        // Optional Subtle Transcription Toggle
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text("Temporary Subtitle Transcription", color = Color.White, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
+                                Text("Shows a brief floating caption while speaking (Off by default for pure voice-out).", color = Color(0xFF94A3B8), fontSize = 11.sp)
+                            }
+                            Switch(
+                                checked = config.showSubtleTranscription,
+                                onCheckedChange = { viewModel.setShowSubtleTranscription(it) },
+                                colors = SwitchDefaults.colors(checkedThumbColor = config.colorTheme.accentColor)
+                            )
                         }
                     }
                 }
             }
 
-            // 4. COLOR THEME & IRIDESCENCE
+            // 4. COLOR THEME
             item {
-                StudioSectionCard(
-                    title = "COLOR AURA & PALETTE",
-                    icon = Icons.Default.ColorLens,
-                    accentColor = config.colorTheme.accentColor
+                SectionHeader(title = "COLOR THEME & AURA", icon = Icons.Default.Palette)
+                Card(
+                    shape = RoundedCornerShape(16.dp),
+                    colors = CardDefaults.cardColors(containerColor = Color(0x331E293B)),
+                    border = BorderStroke(1.dp, Color(0x22FFFFFF)),
+                    modifier = Modifier.fillMaxWidth()
                 ) {
-                    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                         AssistantColorTheme.values().forEach { theme ->
                             val isSelected = config.colorTheme == theme
-                            Surface(
-                                onClick = { viewModel.updateColorTheme(theme) },
-                                shape = RoundedCornerShape(16.dp),
-                                color = if (isSelected) Color(0x381E293B) else Color(0x1F1E293B),
-                                border = BorderStroke(
-                                    width = if (isSelected) 1.8.dp else 1.dp,
-                                    color = if (isSelected) theme.accentColor else Color(0x26FFFFFF)
-                                ),
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .testTag("theme_${theme.name.lowercase()}")
-                            ) {
-                                Row(
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.SpaceBetween,
-                                    modifier = Modifier.padding(horizontal = 14.dp, vertical = 12.dp)
-                                ) {
-                                    Row(verticalAlignment = Alignment.CenterVertically) {
-                                        // Theme preview swatch
-                                        Box(
-                                            modifier = Modifier
-                                                .size(36.dp)
-                                                .clip(CircleShape)
-                                                .background(Brush.linearGradient(theme.gradientColors))
-                                                .border(1.5.dp, Color.White.copy(alpha = 0.6f), CircleShape)
-                                        )
-                                        Spacer(modifier = Modifier.width(12.dp))
-                                        Column {
-                                            Text(
-                                                text = theme.displayName,
-                                                color = JarvisTextPrimary,
-                                                fontSize = 13.sp,
-                                                fontWeight = FontWeight.SemiBold
-                                            )
-                                            Text(
-                                                text = if (isSelected) "Selected Palette" else "Tap to apply",
-                                                color = if (isSelected) theme.accentColor else JarvisTextMuted,
-                                                fontSize = 11.sp
-                                            )
-                                        }
-                                    }
-
-                                    if (isSelected) {
-                                        Icon(
-                                            imageVector = Icons.Default.Check,
-                                            contentDescription = "Selected",
-                                            tint = theme.accentColor,
-                                            modifier = Modifier.size(20.dp)
-                                        )
-                                    }
-                                }
-                            }
+                            ThemeCardItem(
+                                theme = theme,
+                                isSelected = isSelected,
+                                onClick = { viewModel.setColorTheme(theme) }
+                            )
                         }
                     }
                 }
             }
 
-            // 5. SYSTEM-WIDE & HOME SCREEN CONTROLS
+            // 5. VOICE & MULTILINGUAL SYSTEM
             item {
-                StudioSectionCard(
-                    title = "HOME SCREEN & SYSTEM OVERLAYS",
-                    icon = Icons.Default.Layers,
-                    accentColor = config.colorTheme.accentColor
+                SectionHeader(title = "VOICE & MULTILINGUAL ENGINE", icon = Icons.Default.RecordVoiceOver)
+                Card(
+                    shape = RoundedCornerShape(16.dp),
+                    colors = CardDefaults.cardColors(containerColor = Color(0x331E293B)),
+                    border = BorderStroke(1.dp, Color(0x22FFFFFF)),
+                    modifier = Modifier.fillMaxWidth()
                 ) {
-                    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                        val hasOverlayPermission = Build.VERSION.SDK_INT < Build.VERSION_CODES.M || Settings.canDrawOverlays(context)
-
-                        if (!hasOverlayPermission) {
-                            Surface(
-                                shape = RoundedCornerShape(16.dp),
-                                color = Color(0x33FFB300),
-                                border = BorderStroke(1.dp, JarvisAmber),
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .clickable {
-                                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-                                            val intent = Intent(
-                                                Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
-                                                Uri.parse("package:${context.packageName}")
-                                            ).apply { flags = Intent.FLAG_ACTIVITY_NEW_TASK }
-                                            context.startActivity(intent)
-                                        }
-                                    }
-                            ) {
-                                Row(
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.spacedBy(10.dp),
-                                    modifier = Modifier.padding(14.dp)
-                                ) {
-                                    Icon(
-                                        imageVector = Icons.Default.Layers,
-                                        contentDescription = "Permission",
-                                        tint = JarvisAmber,
-                                        modifier = Modifier.size(24.dp)
-                                    )
-                                    Column(modifier = Modifier.weight(1f)) {
-                                        Text(
-                                            text = "GRANT FLOATING OVERLAY PERMISSION",
-                                            color = JarvisAmber,
-                                            fontWeight = FontWeight.Bold,
-                                            fontSize = 11.sp,
-                                            fontFamily = FontFamily.Monospace
-                                        )
-                                        Text(
-                                            text = "Required for Siri-style floating shape to appear over home screen when you say '${config.effectiveWakeWord}'. Tap to enable.",
-                                            color = JarvisTextSecondary,
-                                            fontSize = 11.sp,
-                                            lineHeight = 15.sp
-                                        )
-                                    }
-                                }
-                            }
-                        }
-
-                        // Always Listen for Wake Word in Background
-                        StudioSwitchRow(
-                            title = "Always-On Background Listener",
-                            subtitle = "Listen for '${config.effectiveWakeWord}' while on home screen or outside app",
-                            checked = config.wakeWordEnabled,
-                            onCheckedChange = { enabled ->
-                                viewModel.toggleAmbientWakeWord(enabled)
-                                if (enabled && !hasOverlayPermission && Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-                                    val intent = Intent(
-                                        Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
-                                        Uri.parse("package:${context.packageName}")
-                                    ).apply { flags = Intent.FLAG_ACTIVITY_NEW_TASK }
-                                    context.startActivity(intent)
-                                }
-                            }
-                        )
-
-                        // Floating Home Screen Orb
-                        StudioSwitchRow(
-                            title = "Floating Home Screen Orb",
-                            subtitle = "Float your chosen assistant shape permanently over other apps",
-                            checked = config.floatingBubbleEnabled,
-                            onCheckedChange = { enabled ->
-                                viewModel.updateFloatingBubble(enabled)
-                                if (enabled) {
-                                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M && !Settings.canDrawOverlays(context)) {
-                                        val intent = Intent(
-                                            Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
-                                            Uri.parse("package:${context.packageName}")
-                                        ).apply { flags = Intent.FLAG_ACTIVITY_NEW_TASK }
-                                        context.startActivity(intent)
-                                    } else {
-                                        JarvisFloatingOverlayService.start(context)
-                                    }
-                                } else {
-                                    JarvisFloatingOverlayService.stop(context)
-                                }
-                            }
-                        )
-
-                        // Preview / Test floating shape button
-                        Button(
-                            onClick = {
-                                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M && !Settings.canDrawOverlays(context)) {
-                                    val intent = Intent(
-                                        Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
-                                        Uri.parse("package:${context.packageName}")
-                                    ).apply { flags = Intent.FLAG_ACTIVITY_NEW_TASK }
-                                    context.startActivity(intent)
-                                } else {
-                                    JarvisFloatingOverlayService.activateFromWakeWord(context, null)
-                                }
-                            },
-                            colors = ButtonDefaults.buttonColors(
-                                containerColor = config.colorTheme.primaryColor.copy(alpha = 0.25f),
-                                contentColor = config.colorTheme.accentColor
-                            ),
-                            border = BorderStroke(1.dp, config.colorTheme.accentColor.copy(alpha = 0.6f)),
-                            shape = RoundedCornerShape(12.dp),
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .testTag("test_floating_shape_button")
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.PlayArrow,
-                                contentDescription = "Test Shape",
-                                modifier = Modifier.size(16.dp)
-                            )
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Text(
-                                text = "TEST FLOATING ${config.shape.displayName.uppercase()}",
-                                fontSize = 11.sp,
-                                fontWeight = FontWeight.Bold,
-                                fontFamily = FontFamily.Monospace
-                            )
-                        }
-
-                        // Auto listen on open
-                        StudioSwitchRow(
-                            title = "Auto-Listen on Overlay Launch",
-                            subtitle = "Immediately open speech recognizer when assistant pops up",
-                            checked = config.autoListenOnOpen,
-                            onCheckedChange = { viewModel.updateAutoListen(it) }
-                        )
-
-                        // Continuous Conversation
-                        StudioSwitchRow(
-                            title = "Continuous Hands-Free Conversation",
-                            subtitle = "Keep listening after answering for follow-up prompts",
-                            checked = config.continuousVoiceConversation,
-                            onCheckedChange = { viewModel.updateContinuousConversation(it) }
-                        )
-
-                        // Wake Haptic Feedback
-                        StudioSwitchRow(
-                            title = "Haptic Pulse on Wake",
-                            subtitle = "Tactile confirmation when wake word is detected",
-                            checked = config.wakeHapticFeedback,
-                            onCheckedChange = { viewModel.updateWakeHaptic(it) }
-                        )
-                    }
-                }
-            }
-
-            // 6. VOICE LANGUAGE & DIALECT
-            item {
-                StudioSectionCard(
-                    title = "VOICE LANGUAGE & DIALECT",
-                    icon = Icons.Default.RecordVoiceOver,
-                    accentColor = config.colorTheme.accentColor
-                ) {
-                    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    Column(
+                        modifier = Modifier.padding(16.dp),
+                        verticalArrangement = Arrangement.spacedBy(16.dp)
+                    ) {
                         Text(
-                            text = "Select speech recognition and voice response language for JARVIS:",
-                            color = JarvisTextSecondary,
-                            fontSize = 12.sp
+                            text = "Assistant Primary Language",
+                            color = Color.White,
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.SemiBold
                         )
 
                         AssistantLanguage.values().forEach { lang ->
                             val isSelected = config.voiceLanguage == lang
-                            Surface(
-                                onClick = { viewModel.setAssistantLanguage(lang) },
-                                shape = RoundedCornerShape(16.dp),
-                                color = if (isSelected) config.colorTheme.primaryColor.copy(alpha = 0.35f) else Color(0x1F1E293B),
-                                border = BorderStroke(
-                                    width = if (isSelected) 1.8.dp else 1.dp,
-                                    color = if (isSelected) config.colorTheme.accentColor else Color(0x26FFFFFF)
-                                ),
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .testTag("lang_${lang.name.lowercase()}")
+                            LanguageOptionCard(
+                                language = lang,
+                                isSelected = isSelected,
+                                onSelect = { viewModel.updateVoiceLanguage(lang) },
+                                onTest = { viewModel.testVoiceLanguage(lang) }
+                            )
+                        }
+
+                        // Installed Voice Selection
+                        Column {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                modifier = Modifier.fillMaxWidth()
                             ) {
-                                Row(
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.SpaceBetween,
-                                    modifier = Modifier.padding(horizontal = 14.dp, vertical = 12.dp)
-                                ) {
-                                    Column(modifier = Modifier.weight(1f)) {
-                                        Row(verticalAlignment = Alignment.CenterVertically) {
-                                            Text(
-                                                text = lang.displayName,
-                                                color = JarvisTextPrimary,
-                                                fontSize = 13.5.sp,
-                                                fontWeight = FontWeight.Bold
-                                            )
-                                            if (isSelected) {
-                                                Spacer(modifier = Modifier.width(8.dp))
-                                                Text(
-                                                    text = "SELECTED",
-                                                    color = config.colorTheme.accentColor,
-                                                    fontSize = 10.sp,
-                                                    fontWeight = FontWeight.Bold
-                                                )
-                                            }
-                                        }
-                                        Spacer(modifier = Modifier.height(2.dp))
-                                        Text(
-                                            text = lang.subtitle,
-                                            color = JarvisTextSecondary,
-                                            fontSize = 11.5.sp
-                                        )
-                                        Spacer(modifier = Modifier.height(4.dp))
-                                        Text(
-                                            text = "\"${lang.samplePhrase}\"",
-                                            color = config.colorTheme.accentColor.copy(alpha = 0.85f),
-                                            fontSize = 11.sp,
-                                            fontStyle = androidx.compose.ui.text.font.FontStyle.Italic
-                                        )
-                                    }
-
-                                    Spacer(modifier = Modifier.width(8.dp))
-
-                                    // Preview voice button
-                                    IconButton(
-                                        onClick = { viewModel.testVoiceLanguage(lang) },
-                                        modifier = Modifier
-                                            .size(36.dp)
-                                            .clip(CircleShape)
-                                            .background(if (isSelected) config.colorTheme.accentColor else Color(0x26FFFFFF))
-                                    ) {
-                                        Icon(
-                                            imageVector = Icons.Default.VolumeUp,
-                                            contentDescription = "Test Voice",
-                                            tint = if (isSelected) Color.Black else JarvisTextPrimary,
-                                            modifier = Modifier.size(18.dp)
-                                        )
-                                    }
+                                Text(
+                                    text = "Select Voice (${availableVoices.size} available)",
+                                    color = Color.White,
+                                    fontSize = 13.sp,
+                                    fontWeight = FontWeight.SemiBold
+                                )
+                                if (config.selectedTtsVoiceName.isNotBlank()) {
+                                    Text(
+                                        text = "Custom",
+                                        color = config.colorTheme.accentColor,
+                                        fontSize = 11.sp,
+                                        fontWeight = FontWeight.Medium
+                                    )
                                 }
                             }
-                        }
-                    }
-                }
-            }
+                            Spacer(modifier = Modifier.height(8.dp))
 
-            // 7. VOICE SPEED, PITCH & PERSONALITY
-            item {
-                StudioSectionCard(
-                    title = "VOICE ENGINE & PERSONALITY",
-                    icon = Icons.Default.Psychology,
-                    accentColor = config.colorTheme.accentColor
-                ) {
-                    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                        // Personality Cards
-                        Text(
-                            text = "Assistant Persona:",
-                            color = JarvisTextSecondary,
-                            fontSize = 12.sp,
-                            fontWeight = FontWeight.Medium
-                        )
+                            val prefix = when (config.voiceLanguage) {
+                                AssistantLanguage.HINDI -> "hi"
+                                AssistantLanguage.HINGLISH -> "en-in"
+                                AssistantLanguage.ENGLISH -> "en"
+                            }
+                            val matchingVoices = availableVoices.filter {
+                                it.localeTag.lowercase().startsWith(prefix)
+                            }
+                            val displayVoices = if (matchingVoices.isNotEmpty()) matchingVoices else availableVoices.take(8)
 
-                        Row(
-                            horizontalArrangement = Arrangement.spacedBy(8.dp),
-                            modifier = Modifier.fillMaxWidth()
-                        ) {
-                            AssistantPersonality.values().forEach { personality ->
-                                val isSelected = config.personality == personality
-                                Surface(
-                                    onClick = { viewModel.updatePersonality(personality) },
-                                    shape = RoundedCornerShape(12.dp),
-                                    color = if (isSelected) config.colorTheme.primaryColor.copy(alpha = 0.35f) else Color(0x1F1E293B),
-                                    border = BorderStroke(
-                                        width = if (isSelected) 1.5.dp else 1.dp,
-                                        color = if (isSelected) config.colorTheme.accentColor else Color(0x26FFFFFF)
-                                    ),
-                                    modifier = Modifier.weight(1f)
+                            FlowRow(
+                                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                verticalArrangement = Arrangement.spacedBy(8.dp),
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                val isAutoSelected = config.selectedTtsVoiceName.isBlank()
+                                Box(
+                                    contentAlignment = Alignment.Center,
+                                    modifier = Modifier
+                                        .clip(RoundedCornerShape(8.dp))
+                                        .background(if (isAutoSelected) config.colorTheme.primaryColor else Color(0x22FFFFFF))
+                                        .clickable { viewModel.selectTtsVoice("") }
+                                        .padding(horizontal = 12.dp, vertical = 6.dp)
                                 ) {
-                                    Column(
-                                        horizontalAlignment = Alignment.CenterHorizontally,
-                                        modifier = Modifier.padding(vertical = 10.dp, horizontal = 6.dp)
+                                    Text(
+                                        text = "System Default",
+                                        color = if (isAutoSelected) Color.White else Color(0xFF94A3B8),
+                                        fontSize = 11.sp,
+                                        fontWeight = if (isAutoSelected) FontWeight.Bold else FontWeight.Normal
+                                    )
+                                }
+
+                                displayVoices.forEach { voice ->
+                                    val isSelected = config.selectedTtsVoiceName == voice.name
+                                    Row(
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        modifier = Modifier
+                                            .clip(RoundedCornerShape(8.dp))
+                                            .background(if (isSelected) config.colorTheme.primaryColor else Color(0x22FFFFFF))
+                                            .clickable { viewModel.selectTtsVoice(voice.name) }
+                                            .padding(horizontal = 10.dp, vertical = 6.dp)
                                     ) {
                                         Text(
-                                            text = personality.displayName,
-                                            color = if (isSelected) JarvisTextPrimary else JarvisTextSecondary,
-                                            fontSize = 11.5.sp,
+                                            text = voice.displayName,
+                                            color = if (isSelected) Color.White else Color(0xFF94A3B8),
+                                            fontSize = 11.sp,
                                             fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal
+                                        )
+                                        Spacer(modifier = Modifier.width(4.dp))
+                                        Icon(
+                                            imageVector = Icons.Default.PlayArrow,
+                                            contentDescription = "Test voice",
+                                            tint = if (isSelected) Color.White else Color(0xFF64748B),
+                                            modifier = Modifier
+                                                .size(14.dp)
+                                                .clickable { viewModel.testSelectedVoice(voice.name) }
                                         )
                                     }
                                 }
@@ -858,128 +583,359 @@ fun AssistantCustomizationScreen(
 
                         Spacer(modifier = Modifier.height(4.dp))
 
-                        // Speech Pitch Slider
-                        Text(
-                            text = "Voice Pitch: ${String.format("%.2f", config.speechPitch)}x",
-                            color = JarvisTextSecondary,
-                            fontSize = 12.sp
-                        )
-                        Slider(
-                            value = config.speechPitch,
-                            onValueChange = { viewModel.updateSpeechPitch(it) },
-                            valueRange = 0.6f..1.5f,
-                            colors = SliderDefaults.colors(
-                                thumbColor = config.colorTheme.accentColor,
-                                activeTrackColor = config.colorTheme.accentColor,
-                                inactiveTrackColor = Color(0x33FFFFFF)
+                        // Speech Speed
+                        Column {
+                            Row(
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                Text("Speech Speed", color = Color.White, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
+                                Text("${String.format(Locale.getDefault(), "%.1f", config.speechSpeed)}x", color = Color(0xFF94A3B8), fontSize = 12.sp)
+                            }
+                            Slider(
+                                value = config.speechSpeed,
+                                onValueChange = { viewModel.updateSpeechSpeed(it) },
+                                valueRange = 0.7f..1.5f,
+                                colors = SliderDefaults.colors(
+                                    thumbColor = config.colorTheme.accentColor,
+                                    activeTrackColor = config.colorTheme.primaryColor
+                                )
                             )
-                        )
+                        }
 
-                        // Speech Speed Slider
-                        Text(
-                            text = "Voice Speed: ${String.format("%.2f", config.speechSpeed)}x",
-                            color = JarvisTextSecondary,
-                            fontSize = 12.sp
-                        )
-                        Slider(
-                            value = config.speechSpeed,
-                            onValueChange = { viewModel.updateSpeechSpeed(it) },
-                            valueRange = 0.7f..1.6f,
-                            colors = SliderDefaults.colors(
-                                thumbColor = config.colorTheme.accentColor,
-                                activeTrackColor = config.colorTheme.accentColor,
-                                inactiveTrackColor = Color(0x33FFFFFF)
+                        // Speech Pitch
+                        Column {
+                            Row(
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                Text("Speech Pitch", color = Color.White, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
+                                Text("${String.format(Locale.getDefault(), "%.1f", config.speechPitch)}x", color = Color(0xFF94A3B8), fontSize = 12.sp)
+                            }
+                            Slider(
+                                value = config.speechPitch,
+                                onValueChange = { viewModel.updateSpeechPitch(it) },
+                                valueRange = 0.7f..1.5f,
+                                colors = SliderDefaults.colors(
+                                    thumbColor = config.colorTheme.accentColor,
+                                    activeTrackColor = config.colorTheme.primaryColor
+                                )
                             )
-                        )
+                        }
+
+                        // Continuous Voice Mode Toggle
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text("Continuous Voice Conversation", color = Color.White, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
+                                Text("Automatically re-opens microphone after speech finishes for fluid back-and-forth dialogue.", color = Color(0xFF94A3B8), fontSize = 11.sp)
+                            }
+                            Switch(
+                                checked = config.continuousVoiceConversation,
+                                onCheckedChange = { viewModel.updateContinuousConversation(it) },
+                                colors = SwitchDefaults.colors(checkedThumbColor = config.colorTheme.accentColor)
+                            )
+                        }
+
+                        // Wake Word Configuration
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text("Hands-Free Wake Word", color = Color.White, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
+                                Text("Activate hands-free by speaking '${config.effectiveWakeWord}'.", color = Color(0xFF94A3B8), fontSize = 11.sp)
+                            }
+                            Switch(
+                                checked = config.wakeWordEnabled,
+                                onCheckedChange = { viewModel.toggleAmbientWakeWord(it) },
+                                colors = SwitchDefaults.colors(checkedThumbColor = config.colorTheme.accentColor)
+                            )
+                        }
+
+                        if (config.wakeWordEnabled) {
+                            FlowRow(
+                                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                verticalArrangement = Arrangement.spacedBy(8.dp),
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                WAKE_WORD_PRESETS.forEach { preset ->
+                                    val isSelected = config.wakeWordPreset == preset
+                                    Box(
+                                        contentAlignment = Alignment.Center,
+                                        modifier = Modifier
+                                            .clip(RoundedCornerShape(8.dp))
+                                            .background(if (isSelected) config.colorTheme.primaryColor else Color(0x22FFFFFF))
+                                            .clickable { viewModel.updateSelectedWakeWord(preset) }
+                                            .padding(horizontal = 12.dp, vertical = 6.dp)
+                                    ) {
+                                        Text(
+                                            text = preset,
+                                            color = if (isSelected) Color.White else Color(0xFF94A3B8),
+                                            fontSize = 11.sp
+                                        )
+                                    }
+                                }
+                            }
+
+                            if (config.wakeWordPreset == "Custom") {
+                                OutlinedTextField(
+                                    value = customInputText,
+                                    onValueChange = {
+                                        customInputText = it
+                                        viewModel.updateCustomWakeWord(it)
+                                    },
+                                    label = { Text("Custom Wake Phrase") },
+                                    colors = OutlinedTextFieldDefaults.colors(
+                                        focusedBorderColor = config.colorTheme.accentColor,
+                                        unfocusedBorderColor = Color(0x44FFFFFF),
+                                        focusedTextColor = Color.White,
+                                        unfocusedTextColor = Color.White
+                                    ),
+                                    modifier = Modifier.fillMaxWidth()
+                                )
+                            }
+                        }
                     }
                 }
             }
 
-            item { Spacer(modifier = Modifier.height(24.dp)) }
-        }
-    }
-}
+            // 6. VOICE INTERACTION LOGS & HISTORY
+            item {
+                SectionHeader(title = "VOICE LOGS & DIAGNOSTICS", icon = Icons.Default.DeleteSweep)
+                Card(
+                    shape = RoundedCornerShape(16.dp),
+                    colors = CardDefaults.cardColors(containerColor = Color(0x331E293B)),
+                    border = BorderStroke(1.dp, Color(0x22FFFFFF)),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Text(
+                                text = "Logged Voice Commands (${messages.size})",
+                                color = Color.White,
+                                fontSize = 13.sp,
+                                fontWeight = FontWeight.SemiBold
+                            )
+                            Button(
+                                onClick = { viewModel.clearConversation() },
+                                colors = ButtonDefaults.buttonColors(containerColor = Color(0x33FF4757)),
+                                shape = RoundedCornerShape(8.dp)
+                            ) {
+                                Text("Clear Data", color = Color(0xFFFF6B81), fontSize = 11.sp)
+                            }
+                        }
 
-@Composable
-fun StudioSectionCard(
-    title: String,
-    icon: androidx.compose.ui.graphics.vector.ImageVector,
-    accentColor: Color,
-    content: @Composable () -> Unit
-) {
-    Surface(
-        shape = RoundedCornerShape(22.dp),
-        color = Color(0xF00F172A),
-        border = BorderStroke(1.dp, Color(0x26FFFFFF)),
-        modifier = Modifier.fillMaxWidth()
-    ) {
-        Column(modifier = Modifier.padding(16.dp)) {
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Icon(
-                    imageVector = icon,
-                    contentDescription = null,
-                    tint = accentColor,
-                    modifier = Modifier.size(18.dp)
-                )
-                Spacer(modifier = Modifier.width(8.dp))
-                Text(
-                    text = title,
-                    color = JarvisTextPrimary,
-                    fontSize = 12.sp,
-                    fontWeight = FontWeight.Bold,
-                    letterSpacing = 0.8.sp
-                )
+                        if (messages.isEmpty()) {
+                            Text("No voice interactions logged yet.", color = Color(0xFF64748B), fontSize = 11.sp)
+                        } else {
+                            messages.takeLast(5).reversed().forEach { msg ->
+                                val timeStr = SimpleDateFormat("h:mm a", Locale.getDefault()).format(Date(msg.timestamp))
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .clip(RoundedCornerShape(8.dp))
+                                        .background(Color(0x18FFFFFF))
+                                        .padding(10.dp)
+                                ) {
+                                    Column {
+                                        Row(
+                                            horizontalArrangement = Arrangement.SpaceBetween,
+                                            modifier = Modifier.fillMaxWidth()
+                                        ) {
+                                            Text(
+                                                text = if (msg.sender == "USER") "Voice Input" else "JARVIS Spoken",
+                                                color = if (msg.sender == "USER") Color(0xFF38BDF8) else config.colorTheme.accentColor,
+                                                fontSize = 10.sp,
+                                                fontWeight = FontWeight.Bold
+                                            )
+                                            Text(text = timeStr, color = Color(0xFF64748B), fontSize = 9.sp)
+                                        }
+                                        Spacer(modifier = Modifier.height(2.dp))
+                                        Text(text = msg.text, color = Color.White.copy(alpha = 0.9f), fontSize = 12.sp)
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
             }
-            Spacer(modifier = Modifier.height(14.dp))
-            content()
+
+            item { Spacer(modifier = Modifier.height(40.dp)) }
         }
     }
 }
 
+// -------------------------------------------------------------
+// Component Helpers
+// -------------------------------------------------------------
+
 @Composable
-fun StudioSwitchRow(
-    title: String,
-    subtitle: String,
-    checked: Boolean,
-    onCheckedChange: (Boolean) -> Unit
+private fun SectionHeader(title: String, icon: androidx.compose.ui.graphics.vector.ImageVector) {
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        modifier = Modifier.padding(top = 4.dp, bottom = 4.dp)
+    ) {
+        Icon(
+            imageVector = icon,
+            contentDescription = null,
+            tint = Color(0xFF38BDF8),
+            modifier = Modifier.size(16.dp)
+        )
+        Spacer(modifier = Modifier.width(8.dp))
+        Text(
+            text = title,
+            color = Color(0xFF94A3B8),
+            fontSize = 11.sp,
+            fontWeight = FontWeight.Bold,
+            letterSpacing = 1.1.sp
+        )
+    }
+}
+
+@Composable
+private fun PositionChip(
+    mode: PillPositionMode,
+    isSelected: Boolean,
+    onClick: () -> Unit
+) {
+    Box(
+        contentAlignment = Alignment.Center,
+        modifier = Modifier
+            .clip(RoundedCornerShape(10.dp))
+            .background(if (isSelected) Color(0xFF38BDF8) else Color(0x1AFFFFFF))
+            .clickable(onClick = onClick)
+            .padding(horizontal = 14.dp, vertical = 8.dp)
+    ) {
+        Text(
+            text = mode.displayName,
+            color = if (isSelected) Color(0xFF0F172A) else Color(0xFFE2E8F0),
+            fontSize = 12.sp,
+            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal
+        )
+    }
+}
+
+@Composable
+private fun ThemeCardItem(
+    theme: AssistantColorTheme,
+    isSelected: Boolean,
+    onClick: () -> Unit
 ) {
     Row(
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.SpaceBetween,
         modifier = Modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(14.dp))
-            .clickable { onCheckedChange(!checked) }
-            .padding(vertical = 4.dp)
-    ) {
-        Column(modifier = Modifier.weight(1f)) {
-            Text(
-                text = title,
-                color = JarvisTextPrimary,
-                fontSize = 13.sp,
-                fontWeight = FontWeight.SemiBold
+            .clip(RoundedCornerShape(12.dp))
+            .background(if (isSelected) theme.primaryColor.copy(alpha = 0.25f) else Color(0x11FFFFFF))
+            .border(
+                width = if (isSelected) 1.5.dp else 1.dp,
+                color = if (isSelected) theme.accentColor else Color(0x18FFFFFF),
+                shape = RoundedCornerShape(12.dp)
             )
-            Spacer(modifier = Modifier.height(2.dp))
+            .clickable(onClick = onClick)
+            .padding(horizontal = 14.dp, vertical = 10.dp)
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Box(
+                modifier = Modifier
+                    .size(24.dp)
+                    .clip(CircleShape)
+                    .background(
+                        Brush.horizontalGradient(theme.gradientColors)
+                    )
+            )
+            Spacer(modifier = Modifier.width(12.dp))
             Text(
-                text = subtitle,
-                color = JarvisTextSecondary,
-                fontSize = 11.5.sp,
-                lineHeight = 15.sp
+                text = theme.displayName,
+                color = Color.White,
+                fontSize = 13.sp,
+                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal
             )
         }
-        Spacer(modifier = Modifier.width(10.dp))
-        Switch(
-            checked = checked,
-            onCheckedChange = onCheckedChange,
-            colors = SwitchDefaults.colors(
-                checkedThumbColor = Color.White,
-                checkedTrackColor = JarvisGreen,
-                uncheckedThumbColor = JarvisTextMuted,
-                uncheckedTrackColor = Color(0x33FFFFFF)
+
+        if (isSelected) {
+            Icon(
+                imageVector = Icons.Default.Check,
+                contentDescription = "Selected",
+                tint = theme.accentColor,
+                modifier = Modifier.size(18.dp)
             )
-        )
+        }
+    }
+}
+
+@Composable
+private fun LanguageOptionCard(
+    language: AssistantLanguage,
+    isSelected: Boolean,
+    onSelect: () -> Unit,
+    onTest: () -> Unit
+) {
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.SpaceBetween,
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(12.dp))
+            .background(if (isSelected) Color(0x2A38BDF8) else Color(0x11FFFFFF))
+            .border(
+                width = if (isSelected) 1.5.dp else 1.dp,
+                color = if (isSelected) Color(0xFF38BDF8) else Color(0x18FFFFFF),
+                shape = RoundedCornerShape(12.dp)
+            )
+            .clickable(onClick = onSelect)
+            .padding(12.dp)
+    ) {
+        Column(modifier = Modifier.weight(1f)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    text = language.nativeLabel,
+                    color = Color.White,
+                    fontSize = 13.sp,
+                    fontWeight = FontWeight.Bold
+                )
+                if (isSelected) {
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Box(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(4.dp))
+                            .background(Color(0xFF38BDF8))
+                            .padding(horizontal = 6.dp, vertical = 2.dp)
+                    ) {
+                        Text("Active", color = Color(0xFF0F172A), fontSize = 9.sp, fontWeight = FontWeight.Bold)
+                    }
+                }
+            }
+            Text(
+                text = language.subtitle,
+                color = Color(0xFF94A3B8),
+                fontSize = 11.sp
+            )
+        }
+
+        IconButton(
+            onClick = onTest,
+            modifier = Modifier
+                .size(36.dp)
+                .clip(CircleShape)
+                .background(Color(0x2238BDF8))
+        ) {
+            Icon(
+                imageVector = Icons.Default.VolumeUp,
+                contentDescription = "Test Voice Sample",
+                tint = Color(0xFF38BDF8),
+                modifier = Modifier.size(18.dp)
+            )
+        }
     }
 }

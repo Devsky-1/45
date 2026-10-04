@@ -85,9 +85,12 @@ class JarvisCoreEngine private constructor(val context: Context) {
 
     init {
         // Apply initial TTS & STT settings
-        ttsHelper.setAssistantLanguage(appearanceConfig.value.voiceLanguage)
+        ttsHelper.setAssistantLanguage(appearanceConfig.value.voiceLanguage, appearanceConfig.value.selectedTtsVoiceName)
         ttsHelper.setPitch(appearanceConfig.value.speechPitch)
         ttsHelper.setSpeechRate(appearanceConfig.value.speechSpeed)
+        if (appearanceConfig.value.selectedTtsVoiceName.isNotBlank()) {
+            ttsHelper.setVoiceByName(appearanceConfig.value.selectedTtsVoiceName)
+        }
         speechHelper.setAssistantLanguage(appearanceConfig.value.voiceLanguage)
 
         // Configure wake word
@@ -145,9 +148,12 @@ class JarvisCoreEngine private constructor(val context: Context) {
         // Dynamic config observer
         engineScope.launch {
             appearanceConfig.collect { config ->
-                ttsHelper.setAssistantLanguage(config.voiceLanguage)
+                ttsHelper.setAssistantLanguage(config.voiceLanguage, config.selectedTtsVoiceName)
                 ttsHelper.setPitch(config.speechPitch)
                 ttsHelper.setSpeechRate(config.speechSpeed)
+                if (config.selectedTtsVoiceName.isNotBlank()) {
+                    ttsHelper.setVoiceByName(config.selectedTtsVoiceName)
+                }
                 speechHelper.setAssistantLanguage(config.voiceLanguage)
                 wakeWordEngine.configure(
                     wakeWord = config.effectiveWakeWord,
@@ -309,7 +315,83 @@ class JarvisCoreEngine private constructor(val context: Context) {
         val lang = appearanceConfig.value.voiceLanguage
 
         when (command) {
+            is ParsedJarvisCommand.StopSpeaking -> {
+                ttsHelper.stop()
+                _jarvisState.value = JarvisState.STANDBY
+                wakeWordEngine.resume()
+                deviceController.vibrateHaptic(35)
+                onResponseReady?.invoke("")
+            }
+
+            is ParsedJarvisCommand.TimeQuery -> {
+                val timeFormat = SimpleDateFormat("h:mm a", Locale.getDefault()).format(Date())
+                val reply = when (lang) {
+                    com.example.data.repository.AssistantLanguage.HINDI ->
+                        "अभी समय $timeFormat हुआ है, सर।"
+                    com.example.data.repository.AssistantLanguage.HINGLISH ->
+                        "Abhi time $timeFormat hai Sir."
+                    com.example.data.repository.AssistantLanguage.ENGLISH ->
+                        "The time is exactly $timeFormat, sir."
+                }
+                respondAsJarvis(reply, actionType = "TIME", actionPayload = timeFormat, onResponseReady = onResponseReady)
+            }
+
+            is ParsedJarvisCommand.DateQuery -> {
+                val dateFormat = SimpleDateFormat("EEEE, MMMM d, yyyy", Locale.getDefault()).format(Date())
+                val reply = when (lang) {
+                    com.example.data.repository.AssistantLanguage.HINDI ->
+                        "आज की तारीख $dateFormat है, सर।"
+                    com.example.data.repository.AssistantLanguage.HINGLISH ->
+                        "Aaj ki date $dateFormat hai Sir."
+                    com.example.data.repository.AssistantLanguage.ENGLISH ->
+                        "Today is $dateFormat, sir."
+                }
+                respondAsJarvis(reply, actionType = "DATE", actionPayload = dateFormat, onResponseReady = onResponseReady)
+            }
+
+            is ParsedJarvisCommand.OpenApp -> {
+                val launched = deviceController.openApp(command.appName, command.packageName)
+                val reply = if (launched) {
+                    when (lang) {
+                        com.example.data.repository.AssistantLanguage.HINDI ->
+                            "${command.appName} खोला जा रहा है, सर।"
+                        com.example.data.repository.AssistantLanguage.HINGLISH ->
+                            "${command.appName} open kar raha hoon Sir!"
+                        com.example.data.repository.AssistantLanguage.ENGLISH ->
+                            "Launching ${command.appName}, sir."
+                    }
+                } else {
+                    when (lang) {
+                        com.example.data.repository.AssistantLanguage.HINDI ->
+                            "${command.appName} खोलने में असमर्थ, कृपया जांचें कि यह इंस्टॉल है।"
+                        com.example.data.repository.AssistantLanguage.HINGLISH ->
+                            "${command.appName} nahi mila Sir, please check if installed."
+                        com.example.data.repository.AssistantLanguage.ENGLISH ->
+                            "Unable to locate or launch ${command.appName} on this system, sir."
+                    }
+                }
+                respondAsJarvis(reply, actionType = "OPEN_APP", actionPayload = command.appName, onResponseReady = onResponseReady)
+            }
+
+            is ParsedJarvisCommand.GoHome -> {
+                deviceController.goHome()
+                val reply = when (lang) {
+                    com.example.data.repository.AssistantLanguage.HINDI ->
+                        "होम स्क्रीन पर जा रहे हैं, सर।"
+                    com.example.data.repository.AssistantLanguage.HINGLISH ->
+                        "Home screen par switch kar raha hoon Sir!"
+                    com.example.data.repository.AssistantLanguage.ENGLISH ->
+                        "Returning to home screen, sir."
+                }
+                respondAsJarvis(reply, actionType = "HOME", onResponseReady = onResponseReady)
+            }
+
+            is ParsedJarvisCommand.MathCalculation -> {
+                respondAsJarvis(command.result, actionType = "CALCULATION", actionPayload = command.expression, onResponseReady = onResponseReady)
+            }
+
             is ParsedJarvisCommand.Flashlight -> {
+
                 val success = deviceController.setFlashlight(command.enable)
                 val reply = when (lang) {
                     com.example.data.repository.AssistantLanguage.HINDI ->

@@ -140,11 +140,63 @@ object GeminiClient {
             if (!responseText.isNullOrBlank()) {
                 Result.success(responseText.trim())
             } else {
-                Result.success(generateOfflineJarvisResponse(userPrompt, language))
+                val emptyMessage = when (language) {
+                    AssistantLanguage.HINDI -> "क्षमा करें, कोई उत्तर प्राप्त नहीं हुआ, सर।"
+                    AssistantLanguage.HINGLISH -> "Empty response mila Sir. Please dobara poochiye."
+                    AssistantLanguage.ENGLISH -> "I received an empty response from the network, sir."
+                }
+                Result.success(emptyMessage)
             }
+        } catch (httpEx: retrofit2.HttpException) {
+            val naturalMessage = when (httpEx.code()) {
+                401, 403 -> when (language) {
+                    AssistantLanguage.HINDI -> "प्रमाणीकरण विफल रहा, सर। कृपया एपीआई कुंजी की जाँच करें।"
+                    AssistantLanguage.HINGLISH -> "Authorization fail ho gaya Sir. Please API key verify kijiye."
+                    AssistantLanguage.ENGLISH -> "Authorization check failed, sir. Please verify the Gemini API key."
+                }
+                429 -> when (language) {
+                    AssistantLanguage.HINDI -> "अनुरोध सीमा पूरी हो गई है, सर। कृपया कुछ क्षण प्रतीक्षा करें।"
+                    AssistantLanguage.HINGLISH -> "Rate limit reach ho gaya hai Sir. Thoda wait kijiye."
+                    AssistantLanguage.ENGLISH -> "Neural link rate limit reached, sir. Please standby for a moment."
+                }
+                408 -> when (language) {
+                    AssistantLanguage.HINDI -> "क्षमा करें, मुझे इस समय कनेक्ट करने में समस्या आ रही है।"
+                    AssistantLanguage.HINGLISH -> "Sorry Sir, connection timeout ho gaya."
+                    AssistantLanguage.ENGLISH -> "Sorry, I'm having trouble connecting right now."
+                }
+                500, 502, 503 -> when (language) {
+                    AssistantLanguage.HINDI -> "एआई सर्वर पर समस्या आ रही है, सर।"
+                    AssistantLanguage.HINGLISH -> "AI servers par load hai Sir, abhi unreachable hain."
+                    AssistantLanguage.ENGLISH -> "The central AI servers are experiencing difficulties right now, sir."
+                }
+                else -> when (language) {
+                    AssistantLanguage.HINDI -> "क्षमा करें, मुझे इस समय कनेक्ट करने में समस्या आ रही है।"
+                    AssistantLanguage.HINGLISH -> "Sorry Sir, mujhe abhi connect karne mein problem ho rahi hai."
+                    AssistantLanguage.ENGLISH -> "Sorry, I'm having trouble connecting right now."
+                }
+            }
+            Result.success(naturalMessage)
+        } catch (ioEx: java.io.IOException) {
+            val naturalMessage = when (language) {
+                AssistantLanguage.HINDI -> "क्षमा करें, मुझे इस समय कनेक्ट करने में समस्या आ रही है।"
+                AssistantLanguage.HINGLISH -> "Sorry Sir, mujhe abhi connect karne mein problem ho rahi hai."
+                AssistantLanguage.ENGLISH -> "Sorry, I'm having trouble connecting right now."
+            }
+            Result.success(naturalMessage)
         } catch (e: Exception) {
-            // Graceful fallback to offline smart Jarvis heuristic engine
-            Result.success(generateOfflineJarvisResponse(userPrompt, language))
+            val offlineFallback = generateOfflineJarvisResponse(userPrompt, language)
+            if (offlineFallback.startsWith("Understood, sir. I have processed") ||
+                offlineFallback.startsWith("Samajh gaya Sir!") ||
+                offlineFallback.startsWith("निर्देश प्राप्त हुआ, सर।")) {
+                val naturalMessage = when (language) {
+                    AssistantLanguage.HINDI -> "क्षमा करें, मुझे इस समय कनेक्ट करने में समस्या आ रही है।"
+                    AssistantLanguage.HINGLISH -> "Sorry Sir, mujhe abhi connect karne mein problem ho rahi hai."
+                    AssistantLanguage.ENGLISH -> "Sorry, I'm having trouble connecting right now."
+                }
+                Result.success(naturalMessage)
+            } else {
+                Result.success(offlineFallback)
+            }
         }
     }
 

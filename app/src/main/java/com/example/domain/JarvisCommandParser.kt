@@ -1,5 +1,6 @@
 package com.example.domain
 
+import java.util.Locale
 import java.util.regex.Pattern
 
 sealed interface ParsedJarvisCommand {
@@ -10,6 +11,12 @@ sealed interface ParsedJarvisCommand {
     data class Note(val title: String, val content: String) : ParsedJarvisCommand
     data class Diagnostic(val component: String = "ALL") : ParsedJarvisCommand
     data class Protocol(val protocolName: String) : ParsedJarvisCommand
+    data class OpenApp(val appName: String, val packageName: String? = null) : ParsedJarvisCommand
+    object GoHome : ParsedJarvisCommand
+    data class MathCalculation(val expression: String, val result: String) : ParsedJarvisCommand
+    object StopSpeaking : ParsedJarvisCommand
+    object TimeQuery : ParsedJarvisCommand
+    object DateQuery : ParsedJarvisCommand
     object DailyBriefing : ParsedJarvisCommand
     object ClearHistory : ParsedJarvisCommand
     data class GeneralQuery(val query: String) : ParsedJarvisCommand
@@ -20,7 +27,63 @@ object JarvisCommandParser {
     fun parse(input: String): ParsedJarvisCommand {
         val text = input.trim().lowercase()
 
+        // Immediate Stop / Silence commands
+        if (text == "stop" || text == "cancel" || text == "shut up" || text == "be quiet" ||
+            text == "chup" || text == "ruko" || text == "band karo" || text == "रुको" || text == "चुप रहो" ||
+            text.startsWith("stop speaking") || text.startsWith("stop talking")) {
+            return ParsedJarvisCommand.StopSpeaking
+        }
+
+        // Open Apps commands
+        if (text.startsWith("open ") || text.startsWith("launch ") || text.contains(" kholo") || text.contains(" खोलो")) {
+            when {
+                text.contains("youtube") || text.contains("यू ट्यूब") ->
+                    return ParsedJarvisCommand.OpenApp("YouTube", "com.google.android.youtube")
+                text.contains("chrome") || text.contains("browser") || text.contains("क्रोम") ->
+                    return ParsedJarvisCommand.OpenApp("Chrome", "com.android.chrome")
+                text.contains("camera") || text.contains("कैमरा") ->
+                    return ParsedJarvisCommand.OpenApp("Camera", "android.media.action.IMAGE_CAPTURE")
+                text.contains("settings") || text.contains("setting") || text.contains("सेटिंग") ->
+                    return ParsedJarvisCommand.OpenApp("Settings", "android.settings.SETTINGS")
+                text.contains("calculator") || text.contains("कैलकुलेटर") ->
+                    return ParsedJarvisCommand.OpenApp("Calculator", "com.google.android.calculator")
+                text.contains("maps") || text.contains("map") || text.contains("नक्शा") ->
+                    return ParsedJarvisCommand.OpenApp("Maps", "com.google.android.apps.maps")
+                else -> {
+                    val app = text.replace(Regex("(?i)^(open|launch|kholo|खोलो)\\s*"), "").trim()
+                    if (app.isNotBlank()) return ParsedJarvisCommand.OpenApp(app)
+                }
+            }
+        }
+
+        // Go Home command
+        if (text == "go home" || text == "home screen" || text == "open home" || text == "return home" ||
+            text == "home" || text == "ghar jao" || text == "home jao" || text == "होम स्क्रीन" || text == "होम जाओ") {
+            return ParsedJarvisCommand.GoHome
+        }
+
+        // Direct Math Calculation ("What is 25 times 4?" -> "100.")
+        val mathCmd = tryParseMath(text)
+        if (mathCmd != null) {
+            return mathCmd
+        }
+
+        // Time Query
+        if (text.contains("what time") || text.contains("current time") || text.contains("tell me the time") ||
+            text.contains("time kya hai") || text.contains("time kya hua") || text.contains("kitne baje") ||
+            text.contains("समय क्या है") || text.contains("टाइम क्या है") || text == "time") {
+            return ParsedJarvisCommand.TimeQuery
+        }
+
+        // Date Query
+        if (text.contains("what date") || text.contains("today's date") || text.contains("what is the date") ||
+            text.contains("date kya hai") || text.contains("aaj ki date") || text.contains("आज की तारीख") ||
+            text == "date" || text == "aaj konsa din hai") {
+            return ParsedJarvisCommand.DateQuery
+        }
+
         // Flashlight intents (English, Hindi & Hinglish)
+
         if (text.contains("flashlight on") || text.contains("turn on flashlight") || text.contains("torch on") ||
             text.contains("enable lights") || text.contains("illuminate") || text.contains("torch chalu") ||
             text.contains("torch jalao") || text.contains("light jalao") || text.contains("light on") ||
@@ -187,5 +250,68 @@ object JarvisCommandParser {
 
     private fun String.capitalizeFirstLetter(): String {
         return if (isEmpty()) this else this.substring(0, 1).uppercase() + this.substring(1)
+    }
+
+    private fun tryParseMath(rawText: String): ParsedJarvisCommand.MathCalculation? {
+        val clean = rawText.lowercase()
+            .replace("what is", "")
+            .replace("what's", "")
+            .replace("calculate", "")
+            .replace("solve", "")
+            .replace("tell me", "")
+            .replace("how much is", "")
+            .replace("kitna hoga", "")
+            .replace("kya hoga", "")
+            .trim()
+
+        // Replace textual operator words with mathematical symbols
+        val normalized = clean
+            .replace("multiplied by", "*")
+            .replace("times", "*")
+            .replace("into", "*")
+            .replace("guna", "*")
+            .replace("गुणा", "*")
+            .replace("divided by", "/")
+            .replace("divide by", "/")
+            .replace("over", "/")
+            .replace("bhag", "/")
+            .replace("भाग", "/")
+            .replace("plus", "+")
+            .replace("add", "+")
+            .replace("jod", "+")
+            .replace("जोड़", "+")
+            .replace("minus", "-")
+            .replace("ghata", "-")
+            .replace("घटाओ", "-")
+            .replace("x", "*")
+            .trim()
+
+        val mathRegex = Regex("^([0-9]+(?:\\.[0-9]+)?)\\s*([\\+\\-\\*/])\\s*([0-9]+(?:\\.[0-9]+)?)$")
+        val match = mathRegex.find(normalized) ?: return null
+
+        val num1 = match.groupValues[1].toDoubleOrNull() ?: return null
+        val op = match.groupValues[2]
+        val num2 = match.groupValues[3].toDoubleOrNull() ?: return null
+
+        val calcResult: Double = when (op) {
+            "+" -> num1 + num2
+            "-" -> num1 - num2
+            "*" -> num1 * num2
+            "/" -> {
+                if (num2 == 0.0) return ParsedJarvisCommand.MathCalculation(rawText, "Undefined division by zero, sir.")
+                num1 / num2
+            }
+            else -> return null
+        }
+
+        // Format: integer results formatted cleanly as "100." per Jarvis style, decimals to 2-4 digits
+        val formatted = if (calcResult % 1.0 == 0.0) {
+            "${calcResult.toLong()}."
+        } else {
+            val rounded = String.format(Locale.getDefault(), "%.4f", calcResult).trimEnd('0').trimEnd('.')
+            "$rounded."
+        }
+
+        return ParsedJarvisCommand.MathCalculation(expression = rawText, result = formatted)
     }
 }

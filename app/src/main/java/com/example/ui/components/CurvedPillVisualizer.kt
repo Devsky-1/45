@@ -175,43 +175,27 @@ fun CurvedPillVisualizer(
                 )
             }
 
-            Spacer(modifier = Modifier.width(12.dp))
+            Spacer(modifier = Modifier.width(8.dp))
 
-            // Middle Label
-            Column(
-                modifier = Modifier.weight(1f),
-                verticalArrangement = Arrangement.Center
-            ) {
-                Text(
-                    text = stateText,
-                    color = JarvisTextPrimary,
-                    fontSize = 13.sp,
-                    fontWeight = FontWeight.Bold,
-                    fontFamily = FontFamily.SansSerif
-                )
-                Text(
-                    text = if (state == JarvisState.LISTENING) "Speak now" else "Tap or speak hands-free",
-                    color = JarvisTextMuted,
-                    fontSize = 10.sp,
-                    fontFamily = FontFamily.SansSerif
-                )
-            }
-
-            // Right Equalizer Wave Bars
+            // Center Dynamic Harmonic Equalizer
             Row(
                 verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(3.dp)
+                horizontalArrangement = Arrangement.Center,
+                modifier = Modifier.weight(1f)
             ) {
                 val heights = listOf(
-                    (bar1 * dynamicAudio * 26).dp.coerceIn(4.dp, 28.dp),
-                    (bar2 * dynamicAudio * 28).dp.coerceIn(5.dp, 30.dp),
-                    (bar3 * dynamicAudio * 24).dp.coerceIn(4.dp, 26.dp),
-                    (bar4 * dynamicAudio * 26).dp.coerceIn(4.dp, 28.dp)
+                    (bar1 * dynamicAudio * 26).dp.coerceIn(5.dp, 28.dp),
+                    (bar2 * dynamicAudio * 32).dp.coerceIn(7.dp, 34.dp),
+                    (bar3 * dynamicAudio * 22).dp.coerceIn(5.dp, 26.dp),
+                    (bar4 * dynamicAudio * 30).dp.coerceIn(6.dp, 32.dp),
+                    (bar2 * dynamicAudio * 24).dp.coerceIn(5.dp, 28.dp),
+                    (bar1 * dynamicAudio * 28).dp.coerceIn(6.dp, 30.dp)
                 )
 
                 heights.forEachIndexed { index, barHeight ->
                     Box(
                         modifier = Modifier
+                            .padding(horizontal = 2.5.dp)
                             .width(3.5.dp)
                             .height(barHeight)
                             .clip(RoundedCornerShape(2.dp))
@@ -223,6 +207,7 @@ fun CurvedPillVisualizer(
                     )
                 }
             }
+
         }
     }
 }

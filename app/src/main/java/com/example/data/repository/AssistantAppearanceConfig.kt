@@ -12,6 +12,36 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 
+enum class PillPositionMode(val displayName: String, val description: String) {
+    BOTTOM("Bottom", "Docked elegantly at the bottom edge"),
+    TOP("Top", "Floating gracefully near the top status area"),
+    CENTER("Center", "Anchored dead-center on screen"),
+    LEFT("Left", "Vertical alignment along the left edge"),
+    RIGHT("Right", "Vertical alignment along the right edge"),
+    CUSTOM("Custom (Drag Anywhere)", "Touch and drag the pill anywhere freely")
+}
+
+enum class PillSizeOption(val displayName: String, val scaleFactor: Float, val defaultWidthDp: Int, val defaultHeightDp: Int) {
+    SMALL("Small", 0.82f, 175, 46),
+    MEDIUM("Medium", 1.0f, 220, 54),
+    LARGE("Large", 1.22f, 265, 62),
+    CUSTOM("Custom Slider", 1.0f, 220, 54)
+}
+
+enum class PillGlowLevel(val displayName: String, val multiplier: Float) {
+    OFF("Off", 0.0f),
+    LOW("Low", 0.4f),
+    MEDIUM("Medium", 0.85f),
+    HIGH("High", 1.4f)
+}
+
+enum class PillAnimationStyle(val displayName: String, val speedMultiplier: Float) {
+    OFF("Off", 0.0f),
+    MINIMAL("Minimal", 0.5f),
+    NORMAL("Normal", 1.0f),
+    DYNAMIC("Dynamic", 1.4f)
+}
+
 enum class AssistantShape(val displayName: String, val description: String) {
     SIRI_ORB("Luminous Siri Orb", "Iridescent spherical fluid energy core with ambient glow"),
     CURVED_PILL("Curved Capsule Pill", "Sleek rounded rectangle with dynamic waveform equalizer"),
@@ -104,6 +134,17 @@ enum class AssistantColorTheme(
             Color(0xFFD63031),
             Color(0xFFFF7675)
         )
+    ),
+    AMOLED_DARK(
+        displayName = "AMOLED Obsidian",
+        primaryColor = Color(0xFF1E293B),
+        secondaryColor = Color(0xFF0F172A),
+        accentColor = Color(0xFF38BDF8),
+        gradientColors = listOf(
+            Color(0xFF38BDF8),
+            Color(0xFF1E293B),
+            Color(0xFF0F172A)
+        )
     )
 }
 
@@ -173,10 +214,20 @@ val WAKE_WORD_PRESETS = listOf(
 )
 
 data class AssistantAppearanceConfig(
-    val shape: AssistantShape = AssistantShape.SIRI_ORB,
+    val shape: AssistantShape = AssistantShape.CURVED_PILL,
     val colorTheme: AssistantColorTheme = AssistantColorTheme.SIRI_IRIDESCENT,
-    val personality: AssistantPersonality = AssistantPersonality.PRO_EXECUTIVE,
+    val personality: AssistantPersonality = AssistantPersonality.JARVIS_AI,
     val voiceLanguage: AssistantLanguage = AssistantLanguage.ENGLISH,
+    val pillPositionMode: PillPositionMode = PillPositionMode.BOTTOM,
+    val customOffsetXPercent: Float = 0.5f, // 0.0 to 1.0 (relative to available width)
+    val customOffsetYPercent: Float = 0.85f, // 0.0 to 1.0 (relative to available height)
+    val pillSizeOption: PillSizeOption = PillSizeOption.MEDIUM,
+    val pillScale: Float = 1.0f,
+    val pillOpacity: Float = 0.95f,
+    val pillGlowLevel: PillGlowLevel = PillGlowLevel.HIGH,
+    val pillAnimationStyle: PillAnimationStyle = PillAnimationStyle.DYNAMIC,
+    val showSubtleTranscription: Boolean = false,
+    val selectedTtsVoiceName: String = "",
     val autoListenOnOpen: Boolean = true,
     val continuousVoiceConversation: Boolean = true,
     val wakeWordEnabled: Boolean = true,
@@ -187,8 +238,8 @@ data class AssistantAppearanceConfig(
     val wakeChimeSound: Boolean = true,
     val glowIntensity: Float = 1.0f, // 0.5f to 1.5f
     val orbScale: Float = 1.0f, // 0.8f to 1.3f
-    val speechSpeed: Float = 1.0f, // 0.8f to 1.4f
-    val speechPitch: Float = 1.0f // 0.8f to 1.3f
+    val speechSpeed: Float = 1.0f, // 0.7f to 1.5f
+    val speechPitch: Float = 1.0f // 0.7f to 1.5f
 ) {
     val selectedWakeWord: String
         get() = wakeWordPreset
@@ -199,6 +250,9 @@ data class AssistantAppearanceConfig(
         } else {
             wakeWordPreset
         }
+
+    val effectiveScale: Float
+        get() = if (pillSizeOption == PillSizeOption.CUSTOM) pillScale else pillSizeOption.scaleFactor
 }
 
 class AssistantPreferencesManager(context: Context) {
@@ -209,13 +263,28 @@ class AssistantPreferencesManager(context: Context) {
     val configFlow: StateFlow<AssistantAppearanceConfig> = _configFlow.asStateFlow()
 
     private fun loadConfig(): AssistantAppearanceConfig {
-        val shapeName = prefs.getString("shape", AssistantShape.SIRI_ORB.name) ?: AssistantShape.SIRI_ORB.name
+        val shapeName = prefs.getString("shape", AssistantShape.CURVED_PILL.name) ?: AssistantShape.CURVED_PILL.name
         val colorName = prefs.getString("color_theme", AssistantColorTheme.SIRI_IRIDESCENT.name)
             ?: AssistantColorTheme.SIRI_IRIDESCENT.name
-        val personalityName = prefs.getString("personality", AssistantPersonality.PRO_EXECUTIVE.name)
-            ?: AssistantPersonality.PRO_EXECUTIVE.name
+        val personalityName = prefs.getString("personality", AssistantPersonality.JARVIS_AI.name)
+            ?: AssistantPersonality.JARVIS_AI.name
         val languageName = prefs.getString("voice_language", AssistantLanguage.ENGLISH.name)
             ?: AssistantLanguage.ENGLISH.name
+        val positionModeName = prefs.getString("pill_position_mode", PillPositionMode.BOTTOM.name)
+            ?: PillPositionMode.BOTTOM.name
+        val customX = prefs.getFloat("custom_offset_x_pct", 0.5f)
+        val customY = prefs.getFloat("custom_offset_y_pct", 0.85f)
+        val sizeOptionName = prefs.getString("pill_size_option", PillSizeOption.MEDIUM.name)
+            ?: PillSizeOption.MEDIUM.name
+        val pillScale = prefs.getFloat("pill_scale", 1.0f)
+        val pillOpacity = prefs.getFloat("pill_opacity", 0.95f)
+        val glowLevelName = prefs.getString("pill_glow_level", PillGlowLevel.HIGH.name)
+            ?: PillGlowLevel.HIGH.name
+        val animStyleName = prefs.getString("pill_anim_style", PillAnimationStyle.DYNAMIC.name)
+            ?: PillAnimationStyle.DYNAMIC.name
+        val showTrans = prefs.getBoolean("show_subtle_transcription", false)
+        val voiceName = prefs.getString("selected_tts_voice", "") ?: ""
+
         val autoListen = prefs.getBoolean("auto_listen", true)
         val continuousVoice = prefs.getBoolean("continuous_voice", true)
         val wakeEnabled = prefs.getBoolean("wake_word_enabled", true)
@@ -229,16 +298,30 @@ class AssistantPreferencesManager(context: Context) {
         val speed = prefs.getFloat("speech_speed", 1.0f)
         val pitch = prefs.getFloat("speech_pitch", 1.0f)
 
-        val shape = runCatching { AssistantShape.valueOf(shapeName) }.getOrDefault(AssistantShape.SIRI_ORB)
+        val shape = runCatching { AssistantShape.valueOf(shapeName) }.getOrDefault(AssistantShape.CURVED_PILL)
         val color = runCatching { AssistantColorTheme.valueOf(colorName) }.getOrDefault(AssistantColorTheme.SIRI_IRIDESCENT)
-        val personality = runCatching { AssistantPersonality.valueOf(personalityName) }.getOrDefault(AssistantPersonality.PRO_EXECUTIVE)
+        val personality = runCatching { AssistantPersonality.valueOf(personalityName) }.getOrDefault(AssistantPersonality.JARVIS_AI)
         val language = runCatching { AssistantLanguage.valueOf(languageName) }.getOrDefault(AssistantLanguage.ENGLISH)
+        val positionMode = runCatching { PillPositionMode.valueOf(positionModeName) }.getOrDefault(PillPositionMode.BOTTOM)
+        val sizeOption = runCatching { PillSizeOption.valueOf(sizeOptionName) }.getOrDefault(PillSizeOption.MEDIUM)
+        val glowLevel = runCatching { PillGlowLevel.valueOf(glowLevelName) }.getOrDefault(PillGlowLevel.HIGH)
+        val animStyle = runCatching { PillAnimationStyle.valueOf(animStyleName) }.getOrDefault(PillAnimationStyle.DYNAMIC)
 
         return AssistantAppearanceConfig(
             shape = shape,
             colorTheme = color,
             personality = personality,
             voiceLanguage = language,
+            pillPositionMode = positionMode,
+            customOffsetXPercent = customX,
+            customOffsetYPercent = customY,
+            pillSizeOption = sizeOption,
+            pillScale = pillScale,
+            pillOpacity = pillOpacity,
+            pillGlowLevel = glowLevel,
+            pillAnimationStyle = animStyle,
+            showSubtleTranscription = showTrans,
+            selectedTtsVoiceName = voiceName,
             autoListenOnOpen = autoListen,
             continuousVoiceConversation = continuousVoice,
             wakeWordEnabled = wakeEnabled,
@@ -262,6 +345,16 @@ class AssistantPreferencesManager(context: Context) {
             .putString("color_theme", newConfig.colorTheme.name)
             .putString("personality", newConfig.personality.name)
             .putString("voice_language", newConfig.voiceLanguage.name)
+            .putString("pill_position_mode", newConfig.pillPositionMode.name)
+            .putFloat("custom_offset_x_pct", newConfig.customOffsetXPercent)
+            .putFloat("custom_offset_y_pct", newConfig.customOffsetYPercent)
+            .putString("pill_size_option", newConfig.pillSizeOption.name)
+            .putFloat("pill_scale", newConfig.pillScale)
+            .putFloat("pill_opacity", newConfig.pillOpacity)
+            .putString("pill_glow_level", newConfig.pillGlowLevel.name)
+            .putString("pill_anim_style", newConfig.pillAnimationStyle.name)
+            .putBoolean("show_subtle_transcription", newConfig.showSubtleTranscription)
+            .putString("selected_tts_voice", newConfig.selectedTtsVoiceName)
             .putBoolean("auto_listen", newConfig.autoListenOnOpen)
             .putBoolean("continuous_voice", newConfig.continuousVoiceConversation)
             .putBoolean("wake_word_enabled", newConfig.wakeWordEnabled)
@@ -280,6 +373,48 @@ class AssistantPreferencesManager(context: Context) {
     fun resetToDefaults() {
         _configFlow.value = AssistantAppearanceConfig()
         prefs.edit().clear().apply()
+    }
+
+    fun setPillPositionMode(mode: PillPositionMode) {
+        updateConfig { it.copy(pillPositionMode = mode) }
+    }
+
+    fun setCustomOffset(xPercent: Float, yPercent: Float) {
+        updateConfig {
+            it.copy(
+                pillPositionMode = PillPositionMode.CUSTOM,
+                customOffsetXPercent = xPercent.coerceIn(0.05f, 0.95f),
+                customOffsetYPercent = yPercent.coerceIn(0.05f, 0.95f)
+            )
+        }
+    }
+
+    fun setPillSizeOption(option: PillSizeOption) {
+        updateConfig { it.copy(pillSizeOption = option) }
+    }
+
+    fun setPillScale(scale: Float) {
+        updateConfig { it.copy(pillScale = scale.coerceIn(0.65f, 1.45f)) }
+    }
+
+    fun setPillOpacity(opacity: Float) {
+        updateConfig { it.copy(pillOpacity = opacity.coerceIn(0.3f, 1.0f)) }
+    }
+
+    fun setPillGlowLevel(glow: PillGlowLevel) {
+        updateConfig { it.copy(pillGlowLevel = glow) }
+    }
+
+    fun setPillAnimationStyle(anim: PillAnimationStyle) {
+        updateConfig { it.copy(pillAnimationStyle = anim) }
+    }
+
+    fun setShowSubtleTranscription(show: Boolean) {
+        updateConfig { it.copy(showSubtleTranscription = show) }
+    }
+
+    fun setSelectedTtsVoice(voiceName: String) {
+        updateConfig { it.copy(selectedTtsVoiceName = voiceName) }
     }
 
     fun setShape(shape: AssistantShape) {
@@ -346,3 +481,4 @@ class AssistantPreferencesManager(context: Context) {
         updateConfig { it.copy(speechPitch = pitch.coerceIn(0.7f, 1.5f)) }
     }
 }
+

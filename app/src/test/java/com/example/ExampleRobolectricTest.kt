@@ -37,18 +37,18 @@ class ExampleRobolectricTest {
         val initialConfig = prefs.configFlow.value
         assertEquals("Hey Jarvis", initialConfig.wakeWordPreset)
         assertEquals(true, initialConfig.wakeWordEnabled)
-        assertEquals(AssistantShape.SIRI_ORB, initialConfig.shape)
+        assertEquals(AssistantShape.CURVED_PILL, initialConfig.shape)
         assertEquals(AssistantColorTheme.SIRI_IRIDESCENT, initialConfig.colorTheme)
         assertEquals(AssistantLanguage.ENGLISH, initialConfig.voiceLanguage)
 
         // Update shape, theme and language
-        prefs.setShape(AssistantShape.CURVED_PILL)
+        prefs.setShape(AssistantShape.SIRI_ORB)
         prefs.setColorTheme(AssistantColorTheme.CYBER_CYAN)
         prefs.setWakeWordPreset("Hey Siri")
         prefs.setVoiceLanguage(AssistantLanguage.HINDI)
 
         val updated = prefs.configFlow.value
-        assertEquals(AssistantShape.CURVED_PILL, updated.shape)
+        assertEquals(AssistantShape.SIRI_ORB, updated.shape)
         assertEquals(AssistantColorTheme.CYBER_CYAN, updated.colorTheme)
         assertEquals("Hey Siri", updated.wakeWordPreset)
         assertEquals("Hey Siri", updated.effectiveWakeWord)
@@ -58,6 +58,23 @@ class ExampleRobolectricTest {
         prefs.setVoiceLanguage(AssistantLanguage.HINGLISH)
         val hinglishConfig = prefs.configFlow.value
         assertEquals(AssistantLanguage.HINGLISH, hinglishConfig.voiceLanguage)
+    }
+
+    @Test
+    fun `test command parser for math, go home, open app and stop`() {
+        val mathCmd = com.example.domain.JarvisCommandParser.parse("what is 25 times 4")
+        assertTrue(mathCmd is com.example.domain.ParsedJarvisCommand.MathCalculation)
+        assertEquals("100.", (mathCmd as com.example.domain.ParsedJarvisCommand.MathCalculation).result)
+
+        val homeCmd = com.example.domain.JarvisCommandParser.parse("go home")
+        assertTrue(homeCmd is com.example.domain.ParsedJarvisCommand.GoHome)
+
+        val stopCmd = com.example.domain.JarvisCommandParser.parse("stop speaking")
+        assertTrue(stopCmd is com.example.domain.ParsedJarvisCommand.StopSpeaking)
+
+        val youtubeCmd = com.example.domain.JarvisCommandParser.parse("open YouTube")
+        assertTrue(youtubeCmd is com.example.domain.ParsedJarvisCommand.OpenApp)
+        assertEquals("YouTube", (youtubeCmd as com.example.domain.ParsedJarvisCommand.OpenApp).appName)
     }
 
     @Test

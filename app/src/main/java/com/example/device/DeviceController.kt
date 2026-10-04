@@ -262,7 +262,47 @@ class DeviceController(private val context: Context, private val scope: Coroutin
         )
     }
 
+    fun openApp(appName: String, explicitPackage: String? = null): Boolean {
+        return try {
+            val pm = context.packageManager
+            val intent = if (!explicitPackage.isNullOrBlank()) {
+                if (explicitPackage.startsWith("android.")) {
+                    Intent(explicitPackage)
+                } else {
+                    pm.getLaunchIntentForPackage(explicitPackage)
+                }
+            } else {
+                pm.getLaunchIntentForPackage(appName)
+            }
+
+            if (intent != null) {
+                intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                context.startActivity(intent)
+                true
+            } else {
+                false
+            }
+        } catch (_: Exception) {
+            false
+        }
+    }
+
+    fun goHome(): Boolean {
+        return try {
+            val homeIntent = Intent(Intent.ACTION_MAIN).apply {
+                addCategory(Intent.CATEGORY_HOME)
+                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            }
+            context.startActivity(homeIntent)
+            vibrateHaptic(30)
+            true
+        } catch (_: Exception) {
+            false
+        }
+    }
+
     private fun startPeriodicTelemetrySync() {
+
         scope.launch(Dispatchers.Default) {
             while (true) {
                 delay(3000)
