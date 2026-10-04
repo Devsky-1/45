@@ -66,6 +66,22 @@ class ExampleRobolectricTest {
         assertTrue(mathCmd is com.example.domain.ParsedJarvisCommand.MathCalculation)
         assertEquals("100.", (mathCmd as com.example.domain.ParsedJarvisCommand.MathCalculation).result)
 
+        val mathQuestionCmd = com.example.domain.JarvisCommandParser.parse("what is 25 times 4?")
+        assertTrue(mathQuestionCmd is com.example.domain.ParsedJarvisCommand.MathCalculation)
+        assertEquals("100.", (mathQuestionCmd as com.example.domain.ParsedJarvisCommand.MathCalculation).result)
+
+        val diagCmd = com.example.domain.JarvisCommandParser.parse("open diagnostics")
+        assertTrue(diagCmd is com.example.domain.ParsedJarvisCommand.OpenAssistantScreen)
+        assertEquals(3, (diagCmd as com.example.domain.ParsedJarvisCommand.OpenAssistantScreen).tabIndex)
+
+        val memCmd = com.example.domain.JarvisCommandParser.parse("open memory matrix")
+        assertTrue(memCmd is com.example.domain.ParsedJarvisCommand.OpenAssistantScreen)
+        assertEquals(4, (memCmd as com.example.domain.ParsedJarvisCommand.OpenAssistantScreen).tabIndex)
+
+        val settingsCmd = com.example.domain.JarvisCommandParser.parse("open settings")
+        assertTrue(settingsCmd is com.example.domain.ParsedJarvisCommand.OpenAssistantScreen)
+        assertEquals(1, (settingsCmd as com.example.domain.ParsedJarvisCommand.OpenAssistantScreen).tabIndex)
+
         val homeCmd = com.example.domain.JarvisCommandParser.parse("go home")
         assertTrue(homeCmd is com.example.domain.ParsedJarvisCommand.GoHome)
 

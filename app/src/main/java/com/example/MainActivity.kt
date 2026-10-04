@@ -31,6 +31,8 @@ import com.example.ui.JarvisViewModel
 import com.example.ui.screens.AssistantCustomizationScreen
 import com.example.ui.screens.LockScreenOverlay
 import com.example.ui.screens.MainAssistantScreen
+import com.example.ui.screens.MemoryMatrixScreen
+import com.example.ui.screens.SystemDiagnosticsScreen
 import com.example.ui.theme.MyApplicationTheme
 
 class MainActivity : ComponentActivity() {
@@ -103,7 +105,9 @@ fun JarvisApp(viewModel: JarvisViewModel) {
                 when (tab) {
                     0 -> MainAssistantScreen(
                         viewModel = viewModel,
-                        onOpenSettings = { viewModel.setSelectedTab(1) }
+                        onOpenSettings = { viewModel.setSelectedTab(1) },
+                        onOpenDiagnostics = { viewModel.setSelectedTab(3) },
+                        onOpenMemory = { viewModel.setSelectedTab(4) }
                     )
                     1 -> {
                         BackHandler {
@@ -111,12 +115,43 @@ fun JarvisApp(viewModel: JarvisViewModel) {
                         }
                         AssistantCustomizationScreen(
                             viewModel = viewModel,
+                            onNavigateBack = { viewModel.setSelectedTab(0) },
+                            onNavigateToDiagnostics = { viewModel.setSelectedTab(3) },
+                            onNavigateToMemory = { viewModel.setSelectedTab(4) }
+                        )
+                    }
+                    2 -> {
+                        BackHandler {
+                            viewModel.setSelectedTab(0)
+                        }
+                        LockScreenOverlay(
+                            viewModel = viewModel,
+                            onDismiss = { viewModel.setSelectedTab(0) }
+                        )
+                    }
+                    3 -> {
+                        BackHandler {
+                            viewModel.setSelectedTab(0)
+                        }
+                        SystemDiagnosticsScreen(
+                            viewModel = viewModel,
+                            onNavigateBack = { viewModel.setSelectedTab(0) }
+                        )
+                    }
+                    4 -> {
+                        BackHandler {
+                            viewModel.setSelectedTab(0)
+                        }
+                        MemoryMatrixScreen(
+                            viewModel = viewModel,
                             onNavigateBack = { viewModel.setSelectedTab(0) }
                         )
                     }
                     else -> MainAssistantScreen(
                         viewModel = viewModel,
-                        onOpenSettings = { viewModel.setSelectedTab(1) }
+                        onOpenSettings = { viewModel.setSelectedTab(1) },
+                        onOpenDiagnostics = { viewModel.setSelectedTab(3) },
+                        onOpenMemory = { viewModel.setSelectedTab(4) }
                     )
                 }
             }

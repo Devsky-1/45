@@ -131,22 +131,22 @@ class TextToSpeechHelper(private val context: Context) : TextToSpeech.OnInitList
     ) {
         when (language) {
             AssistantLanguage.HINDI -> {
-                val hiLocale = Locale("hi", "IN")
+                val hiLocale = Locale.forLanguageTag("hi-IN")
                 val res = engine.setLanguage(hiLocale)
                 if (res == TextToSpeech.LANG_MISSING_DATA || res == TextToSpeech.LANG_NOT_SUPPORTED) {
-                    val hiGeneric = Locale("hi")
+                    val hiGeneric = Locale.forLanguageTag("hi")
                     val resGeneric = engine.setLanguage(hiGeneric)
                     if (resGeneric == TextToSpeech.LANG_MISSING_DATA || resGeneric == TextToSpeech.LANG_NOT_SUPPORTED) {
-                        engine.setLanguage(Locale("en", "IN"))
+                        engine.setLanguage(Locale.forLanguageTag("en-IN"))
                     }
                 }
             }
             AssistantLanguage.HINGLISH -> {
                 // Indian English accent produces crisp, natural Hinglish cadence for Latin phonetics
-                val inLocale = Locale("en", "IN")
+                val inLocale = Locale.forLanguageTag("en-IN")
                 val res = engine.setLanguage(inLocale)
                 if (res == TextToSpeech.LANG_MISSING_DATA || res == TextToSpeech.LANG_NOT_SUPPORTED) {
-                    val hiLocale = Locale("hi", "IN")
+                    val hiLocale = Locale.forLanguageTag("hi-IN")
                     val resHi = engine.setLanguage(hiLocale)
                     if (resHi == TextToSpeech.LANG_MISSING_DATA || resHi == TextToSpeech.LANG_NOT_SUPPORTED) {
                         engine.setLanguage(Locale.US)

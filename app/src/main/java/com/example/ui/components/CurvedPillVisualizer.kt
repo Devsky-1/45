@@ -23,9 +23,9 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.VolumeUp
 import androidx.compose.material.icons.filled.GraphicEq
 import androidx.compose.material.icons.filled.Mic
-import androidx.compose.material.icons.filled.VolumeUp
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
@@ -165,7 +165,7 @@ fun CurvedPillVisualizer(
             ) {
                 Icon(
                     imageVector = when (state) {
-                        JarvisState.SPEAKING -> Icons.Default.VolumeUp
+                        JarvisState.SPEAKING -> Icons.AutoMirrored.Filled.VolumeUp
                         JarvisState.LISTENING -> Icons.Default.Mic
                         else -> Icons.Default.GraphicEq
                     },

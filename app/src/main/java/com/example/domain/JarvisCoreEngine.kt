@@ -386,6 +386,33 @@ class JarvisCoreEngine private constructor(val context: Context) {
                 respondAsJarvis(reply, actionType = "HOME", onResponseReady = onResponseReady)
             }
 
+            is ParsedJarvisCommand.OpenAssistantScreen -> {
+                val reply = when (command.tabIndex) {
+                    1 -> when (lang) {
+                        com.example.data.repository.AssistantLanguage.HINDI -> "जार्विस सेटिंग्स खोली जा रही हैं, सर।"
+                        com.example.data.repository.AssistantLanguage.HINGLISH -> "Jarvis Settings open kar raha hoon Sir."
+                        com.example.data.repository.AssistantLanguage.ENGLISH -> "Opening Assistant customization studio, sir."
+                    }
+                    3 -> when (lang) {
+                        com.example.data.repository.AssistantLanguage.HINDI -> "सिस्टम टेलीमेट्री और डायग्नोस्टिक्स स्क्रीन खुली, सर।"
+                        com.example.data.repository.AssistantLanguage.HINGLISH -> "Live system diagnostics screen open kar raha hoon Sir."
+                        com.example.data.repository.AssistantLanguage.ENGLISH -> "Opening live system telemetry and hardware diagnostics grid, sir."
+                    }
+                    4 -> when (lang) {
+                        com.example.data.repository.AssistantLanguage.HINDI -> "मेमोरी मैट्रिक्स खोली जा रही है, सर।"
+                        com.example.data.repository.AssistantLanguage.HINGLISH -> "Memory Matrix vault open ho raha hai Sir."
+                        com.example.data.repository.AssistantLanguage.ENGLISH -> "Opening encrypted memory matrix and agenda archives, sir."
+                    }
+                    2 -> when (lang) {
+                        com.example.data.repository.AssistantLanguage.HINDI -> "एम्बिएंट लॉक स्क्रीन सक्रिय, सर।"
+                        com.example.data.repository.AssistantLanguage.HINGLISH -> "Lock screen ambient mode activate ho raha hai Sir."
+                        com.example.data.repository.AssistantLanguage.ENGLISH -> "Engaging tactical ambient lock screen HUD, sir."
+                    }
+                    else -> "Opening requested screen, sir."
+                }
+                respondAsJarvis(reply, actionType = "NAVIGATE", actionPayload = "${command.tabIndex}", onResponseReady = onResponseReady)
+            }
+
             is ParsedJarvisCommand.MathCalculation -> {
                 respondAsJarvis(command.result, actionType = "CALCULATION", actionPayload = command.expression, onResponseReady = onResponseReady)
             }

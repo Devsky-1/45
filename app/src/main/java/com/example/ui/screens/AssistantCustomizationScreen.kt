@@ -25,11 +25,13 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.VolumeUp
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.ColorLens
 import androidx.compose.material.icons.filled.DeleteSweep
 import androidx.compose.material.icons.filled.Hearing
 import androidx.compose.material.icons.filled.Layers
+import androidx.compose.material.icons.filled.Memory
 import androidx.compose.material.icons.filled.Mic
 import androidx.compose.material.icons.filled.OpenWith
 import androidx.compose.material.icons.filled.Palette
@@ -92,7 +94,9 @@ import java.util.Locale
 fun AssistantCustomizationScreen(
     viewModel: JarvisViewModel,
     onNavigateBack: () -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    onNavigateToDiagnostics: () -> Unit = {},
+    onNavigateToMemory: () -> Unit = {}
 ) {
     val config by viewModel.appearanceConfig.collectAsStateWithLifecycle()
     val jarvisState by viewModel.jarvisState.collectAsStateWithLifecycle()
@@ -221,6 +225,66 @@ fun AssistantCustomizationScreen(
                             color = Color(0xFF64748B),
                             fontSize = 11.sp
                         )
+                    }
+                }
+            }
+
+            // CORE JARVIS SUBSYSTEMS QUICK JUMP
+            item {
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(10.dp),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Card(
+                        shape = RoundedCornerShape(14.dp),
+                        colors = CardDefaults.cardColors(containerColor = Color(0x331E293B)),
+                        border = BorderStroke(1.dp, Color(0x3338BDF8)),
+                        modifier = Modifier
+                            .weight(1f)
+                            .clickable { onNavigateToDiagnostics() }
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier.padding(12.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Speed,
+                                contentDescription = "Diagnostics",
+                                tint = Color(0xFF38BDF8),
+                                modifier = Modifier.size(20.dp)
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Column {
+                                Text("Telemetry", color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                                Text("Live Sensors", color = Color(0xFF94A3B8), fontSize = 10.sp)
+                            }
+                        }
+                    }
+
+                    Card(
+                        shape = RoundedCornerShape(14.dp),
+                        colors = CardDefaults.cardColors(containerColor = Color(0x331E293B)),
+                        border = BorderStroke(1.dp, Color(0x33A855F7)),
+                        modifier = Modifier
+                            .weight(1f)
+                            .clickable { onNavigateToMemory() }
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier.padding(12.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Memory,
+                                contentDescription = "Memory Matrix",
+                                tint = Color(0xFFA855F7),
+                                modifier = Modifier.size(20.dp)
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Column {
+                                Text("Memory Matrix", color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                                Text("Notes & Agenda", color = Color(0xFF94A3B8), fontSize = 10.sp)
+                            }
+                        }
                     }
                 }
             }
@@ -931,7 +995,7 @@ private fun LanguageOptionCard(
                 .background(Color(0x2238BDF8))
         ) {
             Icon(
-                imageVector = Icons.Default.VolumeUp,
+                imageVector = Icons.AutoMirrored.Filled.VolumeUp,
                 contentDescription = "Test Voice Sample",
                 tint = Color(0xFF38BDF8),
                 modifier = Modifier.size(18.dp)

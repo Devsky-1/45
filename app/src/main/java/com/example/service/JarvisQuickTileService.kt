@@ -14,7 +14,9 @@ class JarvisQuickTileService : TileService() {
         qsTile?.let { tile ->
             tile.state = Tile.STATE_ACTIVE
             tile.label = "JARVIS Assist"
-            tile.subtitle = "Voice & Quick Actions"
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                tile.subtitle = "Voice & Quick Actions"
+            }
             tile.updateTile()
         }
     }

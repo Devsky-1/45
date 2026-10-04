@@ -33,6 +33,9 @@ import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.Send
+import androidx.compose.material.icons.automirrored.filled.VolumeOff
+import androidx.compose.material.icons.automirrored.filled.VolumeUp
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.FlashlightOn
@@ -40,9 +43,6 @@ import androidx.compose.material.icons.filled.Keyboard
 import androidx.compose.material.icons.filled.Mic
 import androidx.compose.material.icons.filled.MicOff
 import androidx.compose.material.icons.filled.Replay
-import androidx.compose.material.icons.filled.Send
-import androidx.compose.material.icons.filled.VolumeOff
-import androidx.compose.material.icons.filled.VolumeUp
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
@@ -225,7 +225,7 @@ fun AssistantOverlayContent(
                             modifier = Modifier.size(36.dp)
                         ) {
                             Icon(
-                                imageVector = if (isMuted) Icons.Default.VolumeOff else Icons.Default.VolumeUp,
+                                imageVector = if (isMuted) Icons.AutoMirrored.Filled.VolumeOff else Icons.AutoMirrored.Filled.VolumeUp,
                                 contentDescription = "Toggle Mute",
                                 tint = if (isMuted) JarvisRed else JarvisTextSecondary,
                                 modifier = Modifier.size(20.dp)
@@ -466,7 +466,7 @@ fun AssistantOverlayContent(
                                 .background(config.colorTheme.accentColor)
                         ) {
                             Icon(
-                                imageVector = Icons.Default.Send,
+                                imageVector = Icons.AutoMirrored.Filled.Send,
                                 contentDescription = "Send",
                                 tint = Color(0xFF001F24),
                                 modifier = Modifier.size(20.dp)

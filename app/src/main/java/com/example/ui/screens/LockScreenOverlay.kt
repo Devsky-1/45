@@ -19,6 +19,8 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.VolumeMute
+import androidx.compose.material.icons.automirrored.filled.VolumeUp
 import androidx.compose.material.icons.filled.Bolt
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.FlashlightOff
@@ -269,7 +271,7 @@ fun LockScreenOverlay(
                 )
 
                 LockScreenQuickTile(
-                    icon = if (isMuted) Icons.Default.VolumeMute else Icons.Default.VolumeUp,
+                    icon = if (isMuted) Icons.AutoMirrored.Filled.VolumeMute else Icons.AutoMirrored.Filled.VolumeUp,
                     label = if (isMuted) "MUTED" else "VOICE ON",
                     isActive = !isMuted,
                     onClick = { viewModel.toggleMute() },

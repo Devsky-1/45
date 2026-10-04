@@ -13,6 +13,7 @@ sealed interface ParsedJarvisCommand {
     data class Protocol(val protocolName: String) : ParsedJarvisCommand
     data class OpenApp(val appName: String, val packageName: String? = null) : ParsedJarvisCommand
     object GoHome : ParsedJarvisCommand
+    data class OpenAssistantScreen(val tabIndex: Int) : ParsedJarvisCommand
     data class MathCalculation(val expression: String, val result: String) : ParsedJarvisCommand
     object StopSpeaking : ParsedJarvisCommand
     object TimeQuery : ParsedJarvisCommand
@@ -32,6 +33,31 @@ object JarvisCommandParser {
             text == "chup" || text == "ruko" || text == "band karo" || text == "रुको" || text == "चुप रहो" ||
             text.startsWith("stop speaking") || text.startsWith("stop talking")) {
             return ParsedJarvisCommand.StopSpeaking
+        }
+
+        // Direct Assistant Internal Navigation Screen Commands
+        if (text.contains("jarvis setting") || text.contains("assistant setting") ||
+            text == "open settings" || text == "settings kholo" || text.contains("customize jarvis") ||
+            text.contains("customization studio") || text.contains("change voice")) {
+            return ParsedJarvisCommand.OpenAssistantScreen(1)
+        }
+
+        if (text.contains("open diagnostic") || text.contains("show diagnostic") ||
+            text.contains("show telemetry") || text.contains("open telemetry") ||
+            text.contains("hardware scan") || text.contains("system status screen") ||
+            text.contains("telemetry check")) {
+            return ParsedJarvisCommand.OpenAssistantScreen(3)
+        }
+
+        if (text.contains("open memory") || text.contains("open notes") ||
+            text.contains("open reminder") || text.contains("show reminder") ||
+            text.contains("show notes") || text.contains("memory matrix")) {
+            return ParsedJarvisCommand.OpenAssistantScreen(4)
+        }
+
+        if (text == "lock screen" || text.contains("ambient mode") || text.contains("lock hud") ||
+            text.contains("open lock screen") || text.contains("lock overlay")) {
+            return ParsedJarvisCommand.OpenAssistantScreen(2)
         }
 
         // Open Apps commands
@@ -254,6 +280,8 @@ object JarvisCommandParser {
 
     private fun tryParseMath(rawText: String): ParsedJarvisCommand.MathCalculation? {
         val clean = rawText.lowercase()
+            .replace("?", "")
+            .replace("!", "")
             .replace("what is", "")
             .replace("what's", "")
             .replace("calculate", "")

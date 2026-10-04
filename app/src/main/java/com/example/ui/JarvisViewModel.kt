@@ -112,8 +112,17 @@ class JarvisViewModel(application: Application) : AndroidViewModel(application) 
                     _jarvisState.value = JarvisState.SPEAKING
                     wakeWordEngine.pause()
                 } else if (!speaking && _jarvisState.value == JarvisState.SPEAKING) {
-                    _jarvisState.value = JarvisState.STANDBY
-                    wakeWordEngine.resume()
+                    if (appearanceConfig.value.continuousVoiceConversation) {
+                        viewModelScope.launch {
+                            kotlinx.coroutines.delay(400)
+                            if (_jarvisState.value == JarvisState.SPEAKING || _jarvisState.value == JarvisState.STANDBY) {
+                                toggleVoiceRecognition()
+                            }
+                        }
+                    } else {
+                        _jarvisState.value = JarvisState.STANDBY
+                        wakeWordEngine.resume()
+                    }
                 }
             }
         }
@@ -502,6 +511,34 @@ class JarvisViewModel(application: Application) : AndroidViewModel(application) 
                 respondAsJarvis(reply, actionType = "HOME")
             }
 
+            is ParsedJarvisCommand.OpenAssistantScreen -> {
+                setSelectedTab(command.tabIndex)
+                val reply = when (command.tabIndex) {
+                    1 -> when (lang) {
+                        com.example.data.repository.AssistantLanguage.HINDI -> "जार्विस सेटिंग्स खोली जा रही हैं, सर।"
+                        com.example.data.repository.AssistantLanguage.HINGLISH -> "Jarvis Settings open kar raha hoon Sir."
+                        com.example.data.repository.AssistantLanguage.ENGLISH -> "Opening Assistant customization studio, sir."
+                    }
+                    3 -> when (lang) {
+                        com.example.data.repository.AssistantLanguage.HINDI -> "सिस्टम टेलीमेट्री और डायग्नोस्टिक्स स्क्रीन खुली, सर।"
+                        com.example.data.repository.AssistantLanguage.HINGLISH -> "Live system diagnostics screen open kar raha hoon Sir."
+                        com.example.data.repository.AssistantLanguage.ENGLISH -> "Opening live system telemetry and hardware diagnostics grid, sir."
+                    }
+                    4 -> when (lang) {
+                        com.example.data.repository.AssistantLanguage.HINDI -> "मेमोरी मैट्रिक्स खोली जा रही है, सर।"
+                        com.example.data.repository.AssistantLanguage.HINGLISH -> "Memory Matrix vault open ho raha hai Sir."
+                        com.example.data.repository.AssistantLanguage.ENGLISH -> "Opening encrypted memory matrix and agenda archives, sir."
+                    }
+                    2 -> when (lang) {
+                        com.example.data.repository.AssistantLanguage.HINDI -> "एम्बिएंट लॉक स्क्रीन सक्रिय, सर।"
+                        com.example.data.repository.AssistantLanguage.HINGLISH -> "Lock screen ambient mode activate ho raha hai Sir."
+                        com.example.data.repository.AssistantLanguage.ENGLISH -> "Engaging tactical ambient lock screen HUD, sir."
+                    }
+                    else -> "Opening requested screen, sir."
+                }
+                respondAsJarvis(reply, actionType = "NAVIGATE", actionPayload = "${command.tabIndex}")
+            }
+
             is ParsedJarvisCommand.MathCalculation -> {
                 respondAsJarvis(command.result, actionType = "CALCULATION", actionPayload = command.expression)
             }
@@ -591,6 +628,9 @@ class JarvisViewModel(application: Application) : AndroidViewModel(application) 
                         "System Diagnostic Report Sir: Battery ${t.batteryLevel}%, RAM ${t.ramUsagePercent}%, Storage free ${String.format(Locale.getDefault(), "%.1f", t.storageFreeGb)}GB, network ${t.networkStatus}."
                     com.example.data.repository.AssistantLanguage.ENGLISH ->
                         "System Diagnostic Report, sir: Core battery at ${t.batteryLevel}% (${if (t.isCharging) "Charging" else "Discharging"}), RAM allocation at ${t.ramUsagePercent}% (${t.ramUsedMb}MB of ${t.ramTotalMb}MB), Flash storage with ${String.format(Locale.getDefault(), "%.1f", t.storageFreeGb)}GB available, and Network link is ${t.networkStatus}."
+                }
+                if (rawQuery.contains("open", ignoreCase = true) || rawQuery.contains("show", ignoreCase = true) || rawQuery.contains("screen", ignoreCase = true)) {
+                    setSelectedTab(3)
                 }
                 respondAsJarvis(reply, actionType = "DIAGNOSTIC")
             }

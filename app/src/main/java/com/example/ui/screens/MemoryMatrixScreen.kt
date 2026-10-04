@@ -15,10 +15,12 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Bookmark
 import androidx.compose.material.icons.filled.Check
@@ -94,7 +96,8 @@ import java.util.Locale
 @Composable
 fun MemoryMatrixScreen(
     viewModel: JarvisViewModel,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    onNavigateBack: () -> Unit = {}
 ) {
     val reminders by viewModel.reminders.collectAsStateWithLifecycle()
     val notes by viewModel.notes.collectAsStateWithLifecycle()
@@ -117,7 +120,8 @@ fun MemoryMatrixScreen(
                     )
                 )
             )
-            .testTag("memory_matrix_screen")
+            .testTag("memory_matrix_screen"),
+        horizontalAlignment = Alignment.CenterHorizontally
     ) {
         // TOP HEADER
         Surface(
@@ -126,51 +130,65 @@ fun MemoryMatrixScreen(
             border = androidx.compose.foundation.BorderStroke(1.dp, JarvisCardBorder.copy(alpha = 0.7f)),
             modifier = Modifier.fillMaxWidth()
         ) {
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.SpaceBetween,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 16.dp, vertical = 12.dp)
-            ) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(
-                        imageVector = Icons.Default.Memory,
-                        contentDescription = "Memory",
-                        tint = JarvisCyan,
-                        modifier = Modifier.size(22.dp)
-                    )
-                    Spacer(modifier = Modifier.width(10.dp))
-                    Column {
-                        Text(
-                            text = "JARVIS MEMORY MATRIX",
-                            color = JarvisCyanLight,
-                            fontSize = 13.sp,
-                            fontFamily = FontFamily.Monospace,
-                            fontWeight = FontWeight.Bold
+            Box(modifier = Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .widthIn(max = 720.dp)
+                        .padding(horizontal = 12.dp, vertical = 10.dp)
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        IconButton(
+                            onClick = onNavigateBack,
+                            modifier = Modifier.testTag("memory_back_button")
+                        ) {
+                            Icon(
+                                imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                                contentDescription = "Back to Assistant",
+                                tint = JarvisCyan
+                            )
+                        }
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Icon(
+                            imageVector = Icons.Default.Memory,
+                            contentDescription = "Memory",
+                            tint = JarvisCyan,
+                            modifier = Modifier.size(20.dp)
                         )
-                        Text(
-                            text = "LOCAL PERSISTENT ENCRYPTED VAULT",
-                            color = JarvisTextMuted,
-                            fontSize = 9.sp,
-                            fontFamily = FontFamily.Monospace
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Column {
+                            Text(
+                                text = "JARVIS MEMORY MATRIX",
+                                color = JarvisCyanLight,
+                                fontSize = 13.sp,
+                                fontFamily = FontFamily.Monospace,
+                                fontWeight = FontWeight.Bold
+                            )
+                            Text(
+                                text = "LOCAL PERSISTENT ENCRYPTED VAULT",
+                                color = JarvisTextMuted,
+                                fontSize = 9.sp,
+                                fontFamily = FontFamily.Monospace
+                            )
+                        }
+                    }
+
+                    IconButton(
+                        onClick = {
+                            if (selectedSubTab == 0) showAddReminderDialog = true
+                            else if (selectedSubTab == 1) showAddNoteDialog = true
+                        },
+                        modifier = Modifier.testTag("btn_add_memory_item")
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Add,
+                            contentDescription = "Add",
+                            tint = JarvisCyanLight,
+                            modifier = Modifier.size(22.dp)
                         )
                     }
-                }
-
-                IconButton(
-                    onClick = {
-                        if (selectedSubTab == 0) showAddReminderDialog = true
-                        else if (selectedSubTab == 1) showAddNoteDialog = true
-                    },
-                    modifier = Modifier.testTag("btn_add_memory_item")
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Add,
-                        contentDescription = "Add",
-                        tint = JarvisCyanLight,
-                        modifier = Modifier.size(22.dp)
-                    )
                 }
             }
         }
@@ -183,7 +201,7 @@ fun MemoryMatrixScreen(
             divider = {},
             indicator = { tabPositions ->
                 if (selectedSubTab < tabPositions.size) {
-                    TabRowDefaults.Indicator(
+                    TabRowDefaults.SecondaryIndicator(
                         modifier = Modifier.tabIndicatorOffset(tabPositions[selectedSubTab]),
                         color = JarvisCyan
                     )

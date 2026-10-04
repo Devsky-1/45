@@ -17,10 +17,12 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Assistant
 import androidx.compose.material.icons.filled.BatteryChargingFull
 import androidx.compose.material.icons.filled.Bolt
@@ -91,7 +93,8 @@ import com.example.ui.theme.JarvisTextSecondary
 @Composable
 fun SystemDiagnosticsScreen(
     viewModel: JarvisViewModel,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    onNavigateBack: () -> Unit = {}
 ) {
     val telemetry by viewModel.telemetry.collectAsStateWithLifecycle()
     val activeProtocol by viewModel.activeProtocol.collectAsStateWithLifecycle()
@@ -109,7 +112,8 @@ fun SystemDiagnosticsScreen(
                     )
                 )
             )
-            .testTag("diagnostics_screen")
+            .testTag("diagnostics_screen"),
+        horizontalAlignment = Alignment.CenterHorizontally
     ) {
         // HEADER
         Surface(
@@ -118,48 +122,62 @@ fun SystemDiagnosticsScreen(
             border = androidx.compose.foundation.BorderStroke(1.dp, JarvisCardBorder.copy(alpha = 0.7f)),
             modifier = Modifier.fillMaxWidth()
         ) {
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.SpaceBetween,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 16.dp, vertical = 12.dp)
-            ) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(
-                        imageVector = Icons.Default.Speed,
-                        contentDescription = "Diagnostics",
-                        tint = JarvisCyan,
-                        modifier = Modifier.size(22.dp)
-                    )
-                    Spacer(modifier = Modifier.width(10.dp))
-                    Column {
-                        Text(
-                            text = "SYSTEM TELEMETRY & HARDWARE",
-                            color = JarvisCyanLight,
-                            fontSize = 13.sp,
-                            fontFamily = FontFamily.Monospace,
-                            fontWeight = FontWeight.Bold
+            Box(modifier = Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .widthIn(max = 720.dp)
+                        .padding(horizontal = 12.dp, vertical = 10.dp)
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        IconButton(
+                            onClick = onNavigateBack,
+                            modifier = Modifier.testTag("diagnostics_back_button")
+                        ) {
+                            Icon(
+                                imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                                contentDescription = "Back to Assistant",
+                                tint = JarvisCyan
+                            )
+                        }
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Icon(
+                            imageVector = Icons.Default.Speed,
+                            contentDescription = "Diagnostics",
+                            tint = JarvisCyan,
+                            modifier = Modifier.size(20.dp)
                         )
-                        Text(
-                            text = "REAL-TIME HARDWARE SENSOR MATRIX",
-                            color = JarvisTextMuted,
-                            fontSize = 9.sp,
-                            fontFamily = FontFamily.Monospace
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Column {
+                            Text(
+                                text = "SYSTEM TELEMETRY & HARDWARE",
+                                color = JarvisCyanLight,
+                                fontSize = 13.sp,
+                                fontFamily = FontFamily.Monospace,
+                                fontWeight = FontWeight.Bold
+                            )
+                            Text(
+                                text = "REAL-TIME HARDWARE SENSOR MATRIX",
+                                color = JarvisTextMuted,
+                                fontSize = 9.sp,
+                                fontFamily = FontFamily.Monospace
+                            )
+                        }
+                    }
+
+                    IconButton(
+                        onClick = { viewModel.deviceController.refreshTelemetry() },
+                        modifier = Modifier.testTag("btn_refresh_telemetry")
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Refresh,
+                            contentDescription = "Refresh",
+                            tint = JarvisCyanLight,
+                            modifier = Modifier.size(20.dp)
                         )
                     }
-                }
-
-                IconButton(
-                    onClick = { viewModel.deviceController.refreshTelemetry() },
-                    modifier = Modifier.testTag("btn_refresh_telemetry")
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Refresh,
-                        contentDescription = "Refresh",
-                        tint = JarvisCyanLight,
-                        modifier = Modifier.size(20.dp)
-                    )
                 }
             }
         }
@@ -171,6 +189,7 @@ fun SystemDiagnosticsScreen(
         LazyColumn(
             modifier = Modifier
                 .fillMaxSize()
+                .widthIn(max = 720.dp)
                 .padding(horizontal = 16.dp, vertical = 12.dp),
             verticalArrangement = Arrangement.spacedBy(14.dp)
         ) {

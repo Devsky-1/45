@@ -6,18 +6,26 @@ import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBars
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Memory
+import androidx.compose.material.icons.filled.Speed
 import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -48,14 +56,16 @@ import kotlin.math.roundToInt
 
 /**
  * Pure Voice-First Main Assistant Screen.
- * Contains ONLY the customizable, draggable Siri-style Pill.
- * Zero chat windows, zero clutter, instant voice-in voice-out.
+ * Contains the customizable, draggable Siri-style Pill with quick HUD access.
+ * Zero chat clutter, instant voice-in voice-out.
  */
 @Composable
 fun MainAssistantScreen(
     viewModel: JarvisViewModel,
     onOpenSettings: () -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    onOpenDiagnostics: () -> Unit = {},
+    onOpenMemory: () -> Unit = {}
 ) {
     val jarvisState by viewModel.jarvisState.collectAsStateWithLifecycle()
     val audioLevel by viewModel.rmsAudioLevel.collectAsStateWithLifecycle()
@@ -79,23 +89,106 @@ fun MainAssistantScreen(
             )
             .testTag("main_voice_assistant_canvas")
     ) {
-        // Minimal Top Corner Settings Icon
-        IconButton(
-            onClick = onOpenSettings,
+        // Sleek Top HUD Bar with Status and Quick Module Launchers
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween,
             modifier = Modifier
-                .align(Alignment.TopEnd)
-                .padding(top = topInset + 12.dp, end = 20.dp)
-                .size(44.dp)
-                .clip(CircleShape)
-                .background(Color(0x22FFFFFF))
-                .testTag("settings_button")
+                .fillMaxWidth()
+                .padding(top = topInset + 10.dp, start = 16.dp, end = 16.dp)
+                .align(Alignment.TopCenter)
         ) {
-            Icon(
-                imageVector = Icons.Outlined.Settings,
-                contentDescription = "Assistant Settings",
-                tint = Color.White.copy(alpha = 0.75f),
-                modifier = Modifier.size(22.dp)
-            )
+            // Left HUD status indicator & Quick Module Buttons
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                // JARVIS Badge
+                Box(
+                    contentAlignment = Alignment.Center,
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(12.dp))
+                        .background(Color(0x22FFFFFF))
+                        .padding(horizontal = 10.dp, vertical = 6.dp)
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Box(
+                            modifier = Modifier
+                                .size(8.dp)
+                                .clip(CircleShape)
+                                .background(
+                                    when (jarvisState) {
+                                        JarvisState.STANDBY -> config.colorTheme.primaryColor
+                                        JarvisState.LISTENING -> config.colorTheme.accentColor
+                                        JarvisState.PROCESSING -> Color(0xFFF59E0B)
+                                        JarvisState.SPEAKING -> Color(0xFF10B981)
+                                        JarvisState.ALERT -> Color(0xFFEF4444)
+                                    }
+                                )
+                        )
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text(
+                            text = "J.A.R.V.I.S.",
+                            color = Color.White,
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Bold,
+                            letterSpacing = 1.sp
+                        )
+                    }
+                }
+
+                Spacer(modifier = Modifier.width(8.dp))
+
+                // Telemetry / Diagnostics Button
+                IconButton(
+                    onClick = onOpenDiagnostics,
+                    modifier = Modifier
+                        .size(38.dp)
+                        .clip(CircleShape)
+                        .background(Color(0x18FFFFFF))
+                        .testTag("diagnostics_nav_button")
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Speed,
+                        contentDescription = "System Diagnostics",
+                        tint = config.colorTheme.primaryColor,
+                        modifier = Modifier.size(18.dp)
+                    )
+                }
+
+                Spacer(modifier = Modifier.width(6.dp))
+
+                // Memory Matrix Button
+                IconButton(
+                    onClick = onOpenMemory,
+                    modifier = Modifier
+                        .size(38.dp)
+                        .clip(CircleShape)
+                        .background(Color(0x18FFFFFF))
+                        .testTag("memory_nav_button")
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Memory,
+                        contentDescription = "Memory Matrix",
+                        tint = config.colorTheme.accentColor,
+                        modifier = Modifier.size(18.dp)
+                    )
+                }
+            }
+
+            // Right Settings Button
+            IconButton(
+                onClick = onOpenSettings,
+                modifier = Modifier
+                    .size(38.dp)
+                    .clip(CircleShape)
+                    .background(Color(0x18FFFFFF))
+                    .testTag("settings_button")
+            ) {
+                Icon(
+                    imageVector = Icons.Outlined.Settings,
+                    contentDescription = "Assistant Settings",
+                    tint = Color.White.copy(alpha = 0.85f),
+                    modifier = Modifier.size(18.dp)
+                )
+            }
         }
 
         // Draggable / Configurable Pill Area

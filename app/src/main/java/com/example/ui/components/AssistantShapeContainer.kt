@@ -26,8 +26,8 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.VolumeUp
 import androidx.compose.material.icons.filled.Mic
-import androidx.compose.material.icons.filled.VolumeUp
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
@@ -246,7 +246,7 @@ fun MinimalBubbleVisualizer(
                     .background(JarvisObsidian.copy(alpha = 0.85f))
             ) {
                 Icon(
-                    imageVector = if (state == JarvisState.SPEAKING) Icons.Default.VolumeUp else Icons.Default.Mic,
+                    imageVector = if (state == JarvisState.SPEAKING) Icons.AutoMirrored.Filled.VolumeUp else Icons.Default.Mic,
                     contentDescription = "Voice Assistant",
                     tint = colorTheme.accentColor,
                     modifier = Modifier.size(size * 0.35f)
