@@ -88,7 +88,21 @@ class JarvisViewModel(application: Application) : AndroidViewModel(application) 
     val isMuted: StateFlow<Boolean> = ttsHelper.isMuted
     val availableTtsVoices: StateFlow<List<com.example.audio.TtsVoiceInfo>> = ttsHelper.availableVoices
 
+    // Stark Industries Iron Man Sensors & Tactical Audio Synthesizer
+    val starkAudio = com.example.audio.StarkAudioEffects(viewModelScope)
+    val ironManSensors = com.example.device.IronManSensorManager(application)
+    val visorMotionData: StateFlow<com.example.device.VisorMotionData> = ironManSensors.motionData
+
+    private val _armorSuitStatus = MutableStateFlow(com.example.domain.ArmorSuitStatus())
+    val armorSuitStatus: StateFlow<com.example.domain.ArmorSuitStatus> = _armorSuitStatus.asStateFlow()
+
     init {
+        // Initialize Iron Man flight sensors & sentry tripwire
+        ironManSensors.startListening()
+        ironManSensors.onSentryBreachDetected = {
+            onSentryBreachDetected()
+        }
+
         // Initial speech settings
         ttsHelper.setAssistantLanguage(appearanceConfig.value.voiceLanguage, appearanceConfig.value.selectedTtsVoiceName)
         ttsHelper.setPitch(appearanceConfig.value.speechPitch)
@@ -534,6 +548,11 @@ class JarvisViewModel(application: Application) : AndroidViewModel(application) 
                         com.example.data.repository.AssistantLanguage.HINGLISH -> "Lock screen ambient mode activate ho raha hai Sir."
                         com.example.data.repository.AssistantLanguage.ENGLISH -> "Engaging tactical ambient lock screen HUD, sir."
                     }
+                    5 -> when (lang) {
+                        com.example.data.repository.AssistantLanguage.HINDI -> "आयरन मैन टैक्टिकल फ्लाइट वाइज़र और कॉम्बैट हुड सक्रिय, सर।"
+                        com.example.data.repository.AssistantLanguage.HINGLISH -> "Iron Man Tactical Flight Visor and Combat HUD online Sir!"
+                        com.example.data.repository.AssistantLanguage.ENGLISH -> "Engaging Iron Man tactical flight visor and combat HUD telemetry, sir."
+                    }
                     else -> "Opening requested screen, sir."
                 }
                 respondAsJarvis(reply, actionType = "NAVIGATE", actionPayload = "${command.tabIndex}")
@@ -682,6 +701,71 @@ class JarvisViewModel(application: Application) : AndroidViewModel(application) 
                     com.example.data.repository.AssistantLanguage.ENGLISH -> "Atmospheric scan for ${command.location}: Temperature is 24°C with clear skies, humidity at 45%, barometric pressure 1014 hPa, and wind velocity 12 km/h, sir."
                 }
                 respondAsJarvis(reply, actionType = "WEATHER", actionPayload = command.location)
+            }
+
+            is ParsedJarvisCommand.FireRepulsor -> {
+                fireRepulsor()
+                val reply = when (lang) {
+                    com.example.data.repository.AssistantLanguage.HINDI -> "रिपल्सर पूरी क्षमता से डिस्चार्ज हुआ, सर।"
+                    com.example.data.repository.AssistantLanguage.HINGLISH -> "Repulsor blast fired at maximum capacity Sir!"
+                    com.example.data.repository.AssistantLanguage.ENGLISH -> "Repulsor beam discharged at 100% capacity, sir. Recoil stabilized."
+                }
+                respondAsJarvis(reply, actionType = "REPULSOR_FIRE")
+            }
+
+            is ParsedJarvisCommand.IronManProtocol -> {
+                val reply = when (command.protocolType) {
+                    "VERONICA" -> {
+                        deployVeronicaProtocol()
+                        when (lang) {
+                            com.example.data.repository.AssistantLanguage.HINDI -> "वेरोनिका ऑर्बिटल सपोर्ट मॉड्यूल भेजा गया है, सर। हल्कबस्टर आर्मर तैयार है।"
+                            com.example.data.repository.AssistantLanguage.HINGLISH -> "Veronica orbital cage deployed from orbit Sir! Hulkbuster armor ready."
+                            com.example.data.repository.AssistantLanguage.ENGLISH -> "Veronica orbital support module deployed from low-Earth orbit, sir. Mark XLIV Hulkbuster exo-frame locking onto your coordinates."
+                        }
+                    }
+                    "HOUSE_PARTY" -> {
+                        deployHousePartyProtocol()
+                        when (lang) {
+                            com.example.data.repository.AssistantLanguage.HINDI -> "हाउस पार्टी प्रोटोकॉल सक्रिय, सर। सभी ऑटोनॉमस आर्मर यूनिट्स रवाना हो गई हैं।"
+                            com.example.data.repository.AssistantLanguage.HINGLISH -> "House Party Protocol active Sir! All Mark suits deployed and inbound."
+                            com.example.data.repository.AssistantLanguage.ENGLISH -> "House Party Protocol authorized, sir. All autonomous secondary Mark combat units airborne and converging on target."
+                        }
+                    }
+                    "SENTRY_ARM" -> {
+                        toggleSentryMode(true)
+                        when (lang) {
+                            com.example.data.repository.AssistantLanguage.HINDI -> "सेंट्री मोड सक्रिय, सर। मोशन सेंसर सक्रिय कर दिए गए हैं।"
+                            com.example.data.repository.AssistantLanguage.HINGLISH -> "Perimeter Sentry Mode armed Sir! Hardware motion sensors active."
+                            com.example.data.repository.AssistantLanguage.ENGLISH -> "Perimeter Sentry Mode armed, sir. Device motion tripwire calibrated. Any movement will trigger repulsor defensive countermeasures."
+                        }
+                    }
+                    "SENTRY_DISARM" -> {
+                        toggleSentryMode(false)
+                        when (lang) {
+                            com.example.data.repository.AssistantLanguage.HINDI -> "सेंट्री सुरक्षा स्टैंड डाउन, सर। परिधि सुरक्षित है।"
+                            com.example.data.repository.AssistantLanguage.HINGLISH -> "Sentry Mode disarmed Sir. Perimeter clear."
+                            com.example.data.repository.AssistantLanguage.ENGLISH -> "Sentry Mode disarmed, sir. Standing down perimeter defenses."
+                        }
+                    }
+                    "OVERCLOCK" -> {
+                        toggleArcReactorOverclock()
+                        when (lang) {
+                            com.example.data.repository.AssistantLanguage.HINDI -> "आर्क रिएक्टर 12.8 गीगावाट पर ओवरक्लॉक, सर।"
+                            com.example.data.repository.AssistantLanguage.HINGLISH -> "Arc Reactor overclocked to 12.8 GW Sir! Power routed to repulsors."
+                            com.example.data.repository.AssistantLanguage.ENGLISH -> "Arc Reactor power output overclocked to 12.8 Gigawatts, sir. Maximum energy routed to primary repulsor emitters."
+                        }
+                    }
+                    "SUIT_STATUS" -> {
+                        val s = armorSuitStatus.value
+                        when (lang) {
+                            com.example.data.repository.AssistantLanguage.HINDI -> "${s.selectedArmor.codeName} डायग्नोस्टिक्स: आर्क रिएक्टर ${s.arcReactorOutputGigawatts} GW, रिपल्सर पावर ${s.powerAllocationRepulsors}%, आर्मर अखंडता 100%, सर।"
+                            com.example.data.repository.AssistantLanguage.HINGLISH -> "${s.selectedArmor.codeName} status: Arc Reactor ${s.arcReactorOutputGigawatts} GW, Repulsors ${s.powerAllocationRepulsors}%, Thrusters ${s.powerAllocationThrusters}%, Armor nominal Sir."
+                            com.example.data.repository.AssistantLanguage.ENGLISH -> "${s.selectedArmor.codeName} Diagnostic Report, sir: Arc Reactor output at ${s.arcReactorOutputGigawatts} GW, power routing at ${s.powerAllocationRepulsors}% repulsors, ${s.powerAllocationThrusters}% thrusters. Armor nanotech integrity 100% nominal."
+                        }
+                    }
+                    else -> "Protocol ${command.protocolType} executed, sir."
+                }
+                respondAsJarvis(reply, actionType = "IRON_MAN_PROTOCOL", actionPayload = command.protocolType)
             }
 
             is ParsedJarvisCommand.GeneralQuery -> {
@@ -840,10 +924,135 @@ class JarvisViewModel(application: Application) : AndroidViewModel(application) 
         }
     }
 
+    fun selectArmor(model: com.example.domain.StarkArmorModel) {
+        _armorSuitStatus.value = _armorSuitStatus.value.copy(
+            selectedArmor = model,
+            activeProtocolName = "${model.codeName} INITIALIZED"
+        )
+        starkAudio.playProtocolEngagedTone()
+        deviceController.vibrateHaptic(50)
+    }
+
+    fun toggleArcReactorOverclock() {
+        val current = _armorSuitStatus.value.isArcReactorOverclocked
+        val newOverclock = !current
+        _armorSuitStatus.value = _armorSuitStatus.value.copy(
+            isArcReactorOverclocked = newOverclock,
+            arcReactorOutputGigawatts = if (newOverclock) 12.8f else 3.2f,
+            powerAllocationRepulsors = if (newOverclock) 65 else 35,
+            powerAllocationThrusters = if (newOverclock) 25 else 45,
+            powerAllocationShields = if (newOverclock) 10 else 20
+        )
+        if (newOverclock) {
+            starkAudio.playArcReactorOverclock()
+            deviceController.vibrateHaptic(120)
+        } else {
+            deviceController.vibrateHaptic(40)
+        }
+    }
+
+    fun fireRepulsor() {
+        viewModelScope.launch {
+            _armorSuitStatus.value = _armorSuitStatus.value.copy(isRepulsorFiring = true)
+            starkAudio.playRepulsorCharge {
+                viewModelScope.launch {
+                    deviceController.setFlashlight(true)
+                    deviceController.vibrateHaptic(300)
+                    kotlinx.coroutines.delay(180)
+                    deviceController.setFlashlight(false)
+                    _armorSuitStatus.value = _armorSuitStatus.value.copy(isRepulsorFiring = false)
+                }
+            }
+        }
+    }
+
+    fun toggleTargetLock() {
+        val current = _armorSuitStatus.value.isTargetLocked
+        val newLocked = !current
+        _armorSuitStatus.value = _armorSuitStatus.value.copy(
+            isTargetLocked = newLocked,
+            targetDistanceMeters = if (newLocked) (80..240).random() else 142
+        )
+        if (newLocked) {
+            starkAudio.playTargetLockTone()
+            deviceController.vibrateHaptic(60)
+        } else {
+            deviceController.vibrateHaptic(20)
+        }
+    }
+
+    fun deployVeronicaProtocol() {
+        _armorSuitStatus.value = _armorSuitStatus.value.copy(
+            selectedArmor = com.example.domain.StarkArmorModel.MARK_XLIV_HULKBUSTER,
+            isVeronicaDeployed = true,
+            activeProtocolName = "VERONICA ORBITAL SUPPORT"
+        )
+        _activeProtocol.value = "VERONICA PROTOCOL"
+        starkAudio.playProtocolEngagedTone()
+        deviceController.vibrateHaptic(100)
+    }
+
+    fun deployHousePartyProtocol() {
+        _armorSuitStatus.value = _armorSuitStatus.value.copy(
+            isHousePartyActive = true,
+            activeDroneUnitsCount = 12,
+            activeProtocolName = "HOUSE PARTY PROTOCOL"
+        )
+        _activeProtocol.value = "HOUSE PARTY PROTOCOL"
+        starkAudio.playProtocolEngagedTone()
+        deviceController.vibrateHaptic(80)
+    }
+
+    fun toggleSentryMode(enable: Boolean? = null) {
+        val current = visorMotionData.value.isSentryArmed
+        val newState = enable ?: !current
+        ironManSensors.setSentryArmed(newState)
+        if (newState) {
+            _activeProtocol.value = "SENTRY PERIMETER ARMED"
+            starkAudio.playProtocolEngagedTone()
+            deviceController.vibrateHaptic(80)
+        } else {
+            _activeProtocol.value = "STANDARD PROTOCOL"
+            deviceController.vibrateHaptic(30)
+        }
+    }
+
+    fun onSentryBreachDetected() {
+        starkAudio.playSentryAlarm()
+        deviceController.vibrateHaptic(500)
+        viewModelScope.launch {
+            val lang = appearanceConfig.value.voiceLanguage
+            val warning = when (lang) {
+                com.example.data.repository.AssistantLanguage.HINDI ->
+                    "चेतावनी सर! परिधि में हलचल का पता चला है। सुरक्षा सेंट्री सक्रिय हो गई है।"
+                com.example.data.repository.AssistantLanguage.HINGLISH ->
+                    "Warning Sir! Perimeter breach detected. Device motion detected, Sentry countermeasure ready!"
+                com.example.data.repository.AssistantLanguage.ENGLISH ->
+                    "Perimeter breach detected in quadrant 4, sir! Unauthorized movement recorded. Sentry countermeasures standing by."
+            }
+            respondAsJarvis(warning, actionType = "SENTRY_ALERT")
+        }
+    }
+
+    fun acknowledgeSentryAlert() {
+        ironManSensors.acknowledgeSentryAlert()
+    }
+
+    fun updatePowerRouting(repulsors: Int, thrusters: Int, shields: Int) {
+        _armorSuitStatus.value = _armorSuitStatus.value.copy(
+            powerAllocationRepulsors = repulsors,
+            powerAllocationThrusters = thrusters,
+            powerAllocationShields = shields
+        )
+        deviceController.vibrateHaptic(20)
+    }
+
     override fun onCleared() {
         super.onCleared()
         wakeWordEngine.stopAmbientListening()
         ttsHelper.shutdown()
         speechHelper.stopListening()
+        ironManSensors.stopListening()
+        starkAudio.release()
     }
 }

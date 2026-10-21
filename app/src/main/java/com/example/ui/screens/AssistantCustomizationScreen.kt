@@ -33,7 +33,9 @@ import androidx.compose.material.icons.filled.Hearing
 import androidx.compose.material.icons.filled.Layers
 import androidx.compose.material.icons.filled.Memory
 import androidx.compose.material.icons.filled.Mic
+import androidx.compose.material.icons.filled.MilitaryTech
 import androidx.compose.material.icons.filled.OpenWith
+import com.example.ui.theme.JarvisGold
 import androidx.compose.material.icons.filled.Palette
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Psychology
@@ -96,7 +98,8 @@ fun AssistantCustomizationScreen(
     onNavigateBack: () -> Unit,
     modifier: Modifier = Modifier,
     onNavigateToDiagnostics: () -> Unit = {},
-    onNavigateToMemory: () -> Unit = {}
+    onNavigateToMemory: () -> Unit = {},
+    onNavigateToTacticalVisor: () -> Unit = {}
 ) {
     val config by viewModel.appearanceConfig.collectAsStateWithLifecycle()
     val jarvisState by viewModel.jarvisState.collectAsStateWithLifecycle()
@@ -283,6 +286,32 @@ fun AssistantCustomizationScreen(
                             Column {
                                 Text("Memory Matrix", color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.Bold)
                                 Text("Notes & Agenda", color = Color(0xFF94A3B8), fontSize = 10.sp)
+                            }
+                        }
+                    }
+
+                    Card(
+                        shape = RoundedCornerShape(14.dp),
+                        colors = CardDefaults.cardColors(containerColor = Color(0x331E293B)),
+                        border = BorderStroke(1.dp, JarvisGold.copy(alpha = 0.5f)),
+                        modifier = Modifier
+                            .weight(1f)
+                            .clickable { onNavigateToTacticalVisor() }
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier.padding(12.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.MilitaryTech,
+                                contentDescription = "Mark Visor",
+                                tint = JarvisGold,
+                                modifier = Modifier.size(20.dp)
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Column {
+                                Text("Mark Visor", color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                                Text("Iron Man HUD", color = Color(0xFF94A3B8), fontSize = 10.sp)
                             }
                         }
                     }

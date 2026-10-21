@@ -560,6 +560,32 @@ class JarvisCoreEngine private constructor(val context: Context) {
                 respondAsJarvis(reply, actionType = "CLEAR", onResponseReady = onResponseReady)
             }
 
+            is ParsedJarvisCommand.FireRepulsor -> {
+                deviceController.setFlashlight(true)
+                deviceController.vibrateHaptic(250)
+                kotlinx.coroutines.delay(150)
+                deviceController.setFlashlight(false)
+                val reply = when (lang) {
+                    com.example.data.repository.AssistantLanguage.HINDI -> "रिपल्सर पूरी क्षमता से डिस्चार्ज हुआ, सर।"
+                    com.example.data.repository.AssistantLanguage.HINGLISH -> "Repulsor blast fired at maximum capacity Sir!"
+                    com.example.data.repository.AssistantLanguage.ENGLISH -> "Repulsor beam discharged at 100% capacity, sir. Recoil stabilized."
+                }
+                respondAsJarvis(reply, actionType = "REPULSOR_FIRE", onResponseReady = onResponseReady)
+            }
+
+            is ParsedJarvisCommand.IronManProtocol -> {
+                val reply = when (command.protocolType) {
+                    "VERONICA" -> "Veronica orbital support module deployed from low-Earth orbit, sir. Mark XLIV Hulkbuster exo-frame locking onto your coordinates."
+                    "HOUSE_PARTY" -> "House Party Protocol authorized, sir. All autonomous secondary Mark combat units airborne and converging on target."
+                    "SENTRY_ARM" -> "Perimeter Sentry Mode armed, sir. Device motion tripwire calibrated. Any movement will trigger repulsor defensive countermeasures."
+                    "SENTRY_DISARM" -> "Sentry Mode disarmed, sir. Standing down perimeter defenses."
+                    "OVERCLOCK" -> "Arc Reactor power output overclocked to 12.8 Gigawatts, sir. Maximum energy routed to primary repulsor emitters."
+                    "SUIT_STATUS" -> "Mark LXXXV Diagnostic Report, sir: Arc Reactor output at 3.2 GW, power routing nominal. Armor nanotech integrity 100% nominal."
+                    else -> "Protocol ${command.protocolType} executed, sir."
+                }
+                respondAsJarvis(reply, actionType = "IRON_MAN_PROTOCOL", actionPayload = command.protocolType, onResponseReady = onResponseReady)
+            }
+
             is ParsedJarvisCommand.GeneralQuery -> {
                 // Call Gemini API or fallback to smart Jarvis offline reasoning with selected language and personality
                 val recentMessages = messages.value.takeLast(6).map { it.sender to it.text }

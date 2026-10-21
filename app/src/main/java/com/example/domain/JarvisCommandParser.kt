@@ -20,6 +20,8 @@ sealed interface ParsedJarvisCommand {
     object DateQuery : ParsedJarvisCommand
     object DailyBriefing : ParsedJarvisCommand
     object ClearHistory : ParsedJarvisCommand
+    data class IronManProtocol(val protocolType: String) : ParsedJarvisCommand
+    object FireRepulsor : ParsedJarvisCommand
     data class GeneralQuery(val query: String) : ParsedJarvisCommand
 }
 
@@ -58,6 +60,13 @@ object JarvisCommandParser {
         if (text == "lock screen" || text.contains("ambient mode") || text.contains("lock hud") ||
             text.contains("open lock screen") || text.contains("lock overlay")) {
             return ParsedJarvisCommand.OpenAssistantScreen(2)
+        }
+
+        if (text.contains("tactical hud") || text.contains("flight visor") || text.contains("combat hud") ||
+            text.contains("iron man hud") || text.contains("helmet visor") || text.contains("suit up") ||
+            text == "visor" || text.contains("open visor") || text.contains("visor kholo") || text.contains("mark hud") ||
+            text.contains("armor hud") || text.contains("tactical visor") || text.contains("हेलमेट हुड") || text.contains("वाइज़र खोलो")) {
+            return ParsedJarvisCommand.OpenAssistantScreen(5)
         }
 
         // Open Apps commands
@@ -141,6 +150,41 @@ object JarvisCommandParser {
                 else -> "Standard Operational Protocol"
             }
             return ParsedJarvisCommand.Protocol(name)
+        }
+
+        // Iron Man Combat & Suit Directives
+        if (text.contains("repulsor") && (text.contains("fire") || text.contains("blast") || text.contains("shoot") ||
+            text.contains("discharge") || text.contains("chalao") || text.contains("दगाओ") || text.contains("मारो"))) {
+            return ParsedJarvisCommand.FireRepulsor
+        }
+
+        if (text.contains("veronica") || text.contains("hulkbuster") || text.contains("हल्कबस्टर")) {
+            return ParsedJarvisCommand.IronManProtocol("VERONICA")
+        }
+
+        if (text.contains("house party")) {
+            return ParsedJarvisCommand.IronManProtocol("HOUSE_PARTY")
+        }
+
+        if (text.contains("sentry on") || text.contains("arm sentry") || text.contains("sentry mode") ||
+            text.contains("activate sentry") || text.contains("perimeter defense") || text.contains("tripwire") ||
+            text.contains("सेंट्री चालू")) {
+            return ParsedJarvisCommand.IronManProtocol("SENTRY_ARM")
+        }
+
+        if (text.contains("disarm sentry") || text.contains("sentry off") || text.contains("stand down sentry") ||
+            text.contains("deactivate sentry") || text.contains("सेंट्री बंद")) {
+            return ParsedJarvisCommand.IronManProtocol("SENTRY_DISARM")
+        }
+
+        if (text.contains("arc reactor overclock") || text.contains("maximum power") || text.contains("divert power to repulsors") ||
+            text.contains("overclock power") || text.contains("पावर ओवरक्लॉक")) {
+            return ParsedJarvisCommand.IronManProtocol("OVERCLOCK")
+        }
+
+        if (text.contains("armor integrity") || text.contains("suit status") || text.contains("mark 85") ||
+            text.contains("suit diagnostics") || text.contains("nanotech status") || text.contains("सूट स्थिति")) {
+            return ParsedJarvisCommand.IronManProtocol("SUIT_STATUS")
         }
 
         // Timers: e.g. "set a timer for 5 minutes", "timer 30 seconds", "5 minute ka timer lagao", "टाइमर लगाओ"

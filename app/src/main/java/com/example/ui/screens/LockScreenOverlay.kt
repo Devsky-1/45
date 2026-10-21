@@ -28,6 +28,7 @@ import androidx.compose.material.icons.filled.FlashlightOn
 import androidx.compose.material.icons.filled.LockOpen
 import androidx.compose.material.icons.filled.Mic
 import androidx.compose.material.icons.filled.MicOff
+import androidx.compose.material.icons.filled.MilitaryTech
 import androidx.compose.material.icons.filled.NotificationsActive
 import androidx.compose.material.icons.filled.Shield
 import androidx.compose.material.icons.filled.Thermostat
@@ -60,6 +61,7 @@ import com.example.ui.JarvisViewModel
 import com.example.ui.components.ArcReactorVisualizer
 import com.example.ui.components.HoloCard
 import com.example.ui.components.JarvisState
+import com.example.ui.components.LockScreenStatusHud
 import com.example.ui.components.VoiceWaveformVisualizer
 import com.example.ui.theme.JarvisAmber
 import com.example.ui.theme.JarvisCardBg
@@ -130,49 +132,15 @@ fun LockScreenOverlay(
                 .fillMaxSize()
                 .padding(20.dp)
         ) {
-            // TOP STATUS BAR (Battery, Security, Telemetry)
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.SpaceBetween,
+            // MINIMALIST HIGH-CONTRAST LOCK-SCREEN HUD OVERLAY (Battery, Connectivity & Security)
+            LockScreenStatusHud(
+                telemetry = telemetry,
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(top = 10.dp)
-            ) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(
-                        imageVector = Icons.Default.Shield,
-                        contentDescription = "Security",
-                        tint = JarvisCyan,
-                        modifier = Modifier.size(16.dp)
-                    )
-                    Spacer(modifier = Modifier.width(6.dp))
-                    Text(
-                        text = "LOCKSCREEN SECURE",
-                        color = JarvisCyanLight,
-                        fontSize = 11.sp,
-                        fontFamily = FontFamily.Monospace,
-                        fontWeight = FontWeight.Bold
-                    )
-                }
+                    .padding(top = 4.dp)
+            )
 
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(
-                        imageVector = Icons.Default.Bolt,
-                        contentDescription = "Battery",
-                        tint = if (telemetry.batteryLevel > 20) JarvisGreen else JarvisAmber,
-                        modifier = Modifier.size(16.dp)
-                    )
-                    Spacer(modifier = Modifier.width(4.dp))
-                    Text(
-                        text = "${telemetry.batteryLevel}% ${if (telemetry.isCharging) "[PWR]" else ""}",
-                        color = JarvisTextPrimary,
-                        fontSize = 11.sp,
-                        fontFamily = FontFamily.Monospace
-                    )
-                }
-            }
-
-            Spacer(modifier = Modifier.height(28.dp))
+            Spacer(modifier = Modifier.height(20.dp))
 
             // HOLOGRAPHIC DIGITAL CLOCK & DATE
             Text(
@@ -275,6 +243,17 @@ fun LockScreenOverlay(
                     label = if (isMuted) "MUTED" else "VOICE ON",
                     isActive = !isMuted,
                     onClick = { viewModel.toggleMute() },
+                    modifier = Modifier.weight(1f)
+                )
+
+                LockScreenQuickTile(
+                    icon = Icons.Default.MilitaryTech,
+                    label = "MARK HUD",
+                    isActive = false,
+                    onClick = {
+                        onDismiss()
+                        viewModel.setSelectedTab(5)
+                    },
                     modifier = Modifier.weight(1f)
                 )
             }

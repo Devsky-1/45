@@ -29,6 +29,7 @@ import androidx.compose.ui.Modifier
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.ui.JarvisViewModel
 import com.example.ui.screens.AssistantCustomizationScreen
+import com.example.ui.screens.IronManArmorHudScreen
 import com.example.ui.screens.LockScreenOverlay
 import com.example.ui.screens.MainAssistantScreen
 import com.example.ui.screens.MemoryMatrixScreen
@@ -107,7 +108,8 @@ fun JarvisApp(viewModel: JarvisViewModel) {
                         viewModel = viewModel,
                         onOpenSettings = { viewModel.setSelectedTab(1) },
                         onOpenDiagnostics = { viewModel.setSelectedTab(3) },
-                        onOpenMemory = { viewModel.setSelectedTab(4) }
+                        onOpenMemory = { viewModel.setSelectedTab(4) },
+                        onOpenTacticalVisor = { viewModel.setSelectedTab(5) }
                     )
                     1 -> {
                         BackHandler {
@@ -117,7 +119,8 @@ fun JarvisApp(viewModel: JarvisViewModel) {
                             viewModel = viewModel,
                             onNavigateBack = { viewModel.setSelectedTab(0) },
                             onNavigateToDiagnostics = { viewModel.setSelectedTab(3) },
-                            onNavigateToMemory = { viewModel.setSelectedTab(4) }
+                            onNavigateToMemory = { viewModel.setSelectedTab(4) },
+                            onNavigateToTacticalVisor = { viewModel.setSelectedTab(5) }
                         )
                     }
                     2 -> {
@@ -147,11 +150,21 @@ fun JarvisApp(viewModel: JarvisViewModel) {
                             onNavigateBack = { viewModel.setSelectedTab(0) }
                         )
                     }
+                    5 -> {
+                        BackHandler {
+                            viewModel.setSelectedTab(0)
+                        }
+                        IronManArmorHudScreen(
+                            viewModel = viewModel,
+                            onNavigateBack = { viewModel.setSelectedTab(0) }
+                        )
+                    }
                     else -> MainAssistantScreen(
                         viewModel = viewModel,
                         onOpenSettings = { viewModel.setSelectedTab(1) },
                         onOpenDiagnostics = { viewModel.setSelectedTab(3) },
-                        onOpenMemory = { viewModel.setSelectedTab(4) }
+                        onOpenMemory = { viewModel.setSelectedTab(4) },
+                        onOpenTacticalVisor = { viewModel.setSelectedTab(5) }
                     )
                 }
             }

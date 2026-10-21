@@ -118,4 +118,71 @@ class ExampleRobolectricTest {
         assertTrue(WAKE_WORD_PRESETS.contains("Hey Jarvis"))
         assertTrue(WAKE_WORD_PRESETS.contains("Hey Siri"))
     }
+
+    @Test
+    fun `test lock screen hud device telemetry data model`() {
+        val telemetry = com.example.device.DeviceTelemetry(
+            batteryLevel = 84,
+            isCharging = true,
+            networkStatus = "Online (Wi-Fi)",
+            batteryTemperatureCelsius = 31.2f,
+            ramUsagePercent = 52
+        )
+
+        assertEquals(84, telemetry.batteryLevel)
+        assertTrue(telemetry.isCharging)
+        assertTrue(telemetry.networkStatus.contains("Wi-Fi"))
+        assertEquals(31.2f, telemetry.batteryTemperatureCelsius, 0.01f)
+        assertEquals(52, telemetry.ramUsagePercent)
+    }
+
+    @Test
+    fun `test iron man combat and suit command parser`() {
+        val hulkbusterCmd = com.example.domain.JarvisCommandParser.parse("deploy hulkbuster")
+        assertTrue(hulkbusterCmd is com.example.domain.ParsedJarvisCommand.IronManProtocol)
+        assertEquals("VERONICA", (hulkbusterCmd as com.example.domain.ParsedJarvisCommand.IronManProtocol).protocolType)
+
+        val veronicaCmd = com.example.domain.JarvisCommandParser.parse("activate veronica")
+        assertTrue(veronicaCmd is com.example.domain.ParsedJarvisCommand.IronManProtocol)
+        assertEquals("VERONICA", (veronicaCmd as com.example.domain.ParsedJarvisCommand.IronManProtocol).protocolType)
+
+        val housePartyCmd = com.example.domain.JarvisCommandParser.parse("house party protocol")
+        assertTrue(housePartyCmd is com.example.domain.ParsedJarvisCommand.IronManProtocol)
+        assertEquals("HOUSE_PARTY", (housePartyCmd as com.example.domain.ParsedJarvisCommand.IronManProtocol).protocolType)
+
+        val sentryCmd = com.example.domain.JarvisCommandParser.parse("arm sentry mode")
+        assertTrue(sentryCmd is com.example.domain.ParsedJarvisCommand.IronManProtocol)
+        assertEquals("SENTRY_ARM", (sentryCmd as com.example.domain.ParsedJarvisCommand.IronManProtocol).protocolType)
+
+        val disarmCmd = com.example.domain.JarvisCommandParser.parse("disarm sentry")
+        assertTrue(disarmCmd is com.example.domain.ParsedJarvisCommand.IronManProtocol)
+        assertEquals("SENTRY_DISARM", (disarmCmd as com.example.domain.ParsedJarvisCommand.IronManProtocol).protocolType)
+
+        val repulsorCmd = com.example.domain.JarvisCommandParser.parse("fire repulsor")
+        assertTrue(repulsorCmd is com.example.domain.ParsedJarvisCommand.FireRepulsor)
+
+        val overclockCmd = com.example.domain.JarvisCommandParser.parse("arc reactor overclock")
+        assertTrue(overclockCmd is com.example.domain.ParsedJarvisCommand.IronManProtocol)
+        assertEquals("OVERCLOCK", (overclockCmd as com.example.domain.ParsedJarvisCommand.IronManProtocol).protocolType)
+
+        val visorCmd = com.example.domain.JarvisCommandParser.parse("suit up")
+        assertTrue(visorCmd is com.example.domain.ParsedJarvisCommand.OpenAssistantScreen)
+        assertEquals(5, (visorCmd as com.example.domain.ParsedJarvisCommand.OpenAssistantScreen).tabIndex)
+
+        val hudCmd = com.example.domain.JarvisCommandParser.parse("open tactical hud")
+        assertTrue(hudCmd is com.example.domain.ParsedJarvisCommand.OpenAssistantScreen)
+        assertEquals(5, (hudCmd as com.example.domain.ParsedJarvisCommand.OpenAssistantScreen).tabIndex)
+    }
+
+    @Test
+    fun `test stark armor models and designations`() {
+        assertEquals(5, com.example.domain.StarkArmorModel.entries.size)
+        val mark85 = com.example.domain.StarkArmorModel.MARK_LXXXV
+        assertEquals("MARK LXXXV", mark85.codeName)
+        assertTrue(mark85.designation.contains("Nanotech"))
+
+        val hulkbuster = com.example.domain.StarkArmorModel.MARK_XLIV_HULKBUSTER
+        assertEquals("MARK XLIV", hulkbuster.codeName)
+        assertTrue(hulkbuster.designation.contains("Veronica"))
+    }
 }

@@ -25,11 +25,13 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Memory
+import androidx.compose.material.icons.filled.MilitaryTech
 import androidx.compose.material.icons.filled.Speed
 import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Text
+import com.example.ui.theme.JarvisGold
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
@@ -65,7 +67,8 @@ fun MainAssistantScreen(
     onOpenSettings: () -> Unit,
     modifier: Modifier = Modifier,
     onOpenDiagnostics: () -> Unit = {},
-    onOpenMemory: () -> Unit = {}
+    onOpenMemory: () -> Unit = {},
+    onOpenTacticalVisor: () -> Unit = {}
 ) {
     val jarvisState by viewModel.jarvisState.collectAsStateWithLifecycle()
     val audioLevel by viewModel.rmsAudioLevel.collectAsStateWithLifecycle()
@@ -168,6 +171,25 @@ fun MainAssistantScreen(
                         imageVector = Icons.Default.Memory,
                         contentDescription = "Memory Matrix",
                         tint = config.colorTheme.accentColor,
+                        modifier = Modifier.size(18.dp)
+                    )
+                }
+
+                Spacer(modifier = Modifier.width(6.dp))
+
+                // Tactical Combat Visor HUD Button
+                IconButton(
+                    onClick = onOpenTacticalVisor,
+                    modifier = Modifier
+                        .size(38.dp)
+                        .clip(CircleShape)
+                        .background(Color(0x18FFFFFF))
+                        .testTag("tactical_visor_nav_button")
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.MilitaryTech,
+                        contentDescription = "Iron Man Tactical Visor HUD",
+                        tint = JarvisGold,
                         modifier = Modifier.size(18.dp)
                     )
                 }
